@@ -1,6 +1,7 @@
 use std::{
     env::{self, Args},
-    io::{self, stdout, Stdout, Write},
+    fs::File,
+    io::{self, stdout, Read, Stdout, Write},
     os::windows::thread,
     ptr::NonNull,
     time::Duration,
@@ -17,6 +18,7 @@ use crossterm::{terminal, Result};
 
 struct Parameters {
     file_path: String,
+    byte_size: u16,
 }
 
 struct TermState {
@@ -32,6 +34,7 @@ impl From<Args> for Parameters {
         let collected_args: Vec<String> = args.collect();
         Self {
             file_path: collected_args[1].clone(),
+            byte_size: 16,
         }
     }
 }
@@ -56,6 +59,10 @@ fn main() -> Result<()> {
         padding: 2,
     };
 
+    let file = File::open(&parameters.file_path).expect("Failed to open file");
+    let file_size = file.metadata()?.len();
+    let bytes: Vec<Result<u8>> = file.bytes().collect();
+
     loop {
         if poll(Duration::from_millis(100))? {
             let code = match read()? {
@@ -73,8 +80,8 @@ fn main() -> Result<()> {
             }
 
             let status = format!(
-                "Hex Editor ({}x{}) - {}:{}",
-                state.term_width, state.term_height, state.column, state.row
+                "Hex Editor ({}x{}) - {}:{}, file: {}",
+                state.term_width, state.term_height, state.column, state.row, &parameters.file_path
             );
 
             if state.column > state.term_width {
@@ -84,16 +91,81 @@ fn main() -> Result<()> {
                 state.row = state.term_height
             }
 
+            let offset_txt = "Offset(h)";
+
             queue!(
                 &mut stdout,
                 terminal::Clear(ClearType::All),
                 style::SetForegroundColor(Color::Yellow),
+                cursor::MoveTo(state.padding, 0),
+                style::Print(offset_txt),
                 cursor::MoveTo(state.padding, state.term_height),
                 style::Print(status),
-                cursor::MoveTo(state.column, state.row),
-                style::SetForegroundColor(Color::DarkBlue),
             )?;
 
+            let margin = (offset_txt.len() + 6) as u16;
+
+            for i in 0..parameters.byte_size {
+                queue!(
+                    &mut stdout,
+                    cursor::MoveTo(margin + i * 5, 0),
+                    style::Print(format!("{:#04X}", i))
+                )?;
+            }
+
+            //For each offset
+            let file_size = file_size as u16;
+            let sections = file_size / parameters.byte_size;
+            for i in 1..sections + 1 {
+                if i >= state.term_height {
+                    break;
+                }
+                queue!(
+                    &mut stdout,
+                    style::SetForegroundColor(Color::Yellow),
+                    cursor::MoveTo(state.padding, i as u16),
+                    style::Print(format!("{:#010x}", i * parameters.byte_size))
+                )?;
+            }
+
+            //For each byte in file
+            let mut byte_x = state.padding + 13;
+            let mut byte_y = 1;
+            queue!(
+                &mut stdout,
+                cursor::MoveTo(byte_x, byte_y),
+                style::SetForegroundColor(Color::DarkBlue)
+            )?;
+            let mut iter = 0;
+            for possible_byte in &bytes {
+                match possible_byte {
+                    Ok(byte) => {
+                        queue!(
+                            &mut stdout,
+                            cursor::MoveTo(byte_x, byte_y),
+                            style::Print(format!("{:#04X}", byte))
+                        )?;
+
+                        byte_x += 5;
+                        iter += 1;
+
+                        //Overflow on x axis
+                        if iter >= parameters.byte_size {
+                            iter = 0;
+                            byte_x = state.padding + 13;
+                            byte_y += 1;
+                        }
+
+                        //Overflow on y axis (columns)
+                        if byte_y >= state.term_height {
+                            break;
+                        }
+                    }
+                    Err(_) => panic!("Failed to read byte number: {}", iter),
+                }
+            }
+
+            queue!(&mut stdout, cursor::MoveTo(state.column, state.row))?;
             stdout.flush()?;
         }
     }
