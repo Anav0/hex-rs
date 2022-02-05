@@ -62,12 +62,28 @@ fn main() -> Result<()> {
     let file = File::open(&parameters.file_path).expect("Failed to open file");
     let file_size = file.metadata()?.len();
     let bytes: Vec<Result<u8>> = file.bytes().collect();
+    let offset_txt = "Offset(h)";
+    let minimal_width = ((parameters.byte_size + 1) * 5) + offset_txt.len() as u16;
 
     loop {
         if poll(Duration::from_millis(100))? {
             let code = match read()? {
                 Event::Key(event) => handle_input(&mut state, event),
                 Event::Resize(width, height) => {
+                    if width < minimal_width {
+                        queue!(
+                            &mut stdout,
+                            terminal::Clear(ClearType::All),
+                            cursor::MoveTo(1, 1),
+                            style::Print(format!(
+                                "Windows too small to display {} bytes in one row",
+                                parameters.byte_size
+                            ))
+                        )?;
+                        stdout.flush()?;
+                        continue;
+                    }
+
                     state.term_width = width;
                     state.term_height = height;
                     0
@@ -90,8 +106,6 @@ fn main() -> Result<()> {
             if state.row > state.term_height {
                 state.row = state.term_height
             }
-
-            let offset_txt = "Offset(h)";
 
             queue!(
                 &mut stdout,
