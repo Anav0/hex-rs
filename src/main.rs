@@ -71,6 +71,7 @@ fn main() -> Result<()> {
         if poll(Duration::from_millis(100))? {
             let code = match read()? {
                 Event::Key(event) => handle_input(&mut state, event),
+                Event::Mouse(event) => handle_mouse(&mut state, event),
                 Event::Resize(width, height) => {
                     if width < minimal_width {
                         queue!(
@@ -200,6 +201,22 @@ fn main() -> Result<()> {
     )?;
     terminal::disable_raw_mode()?;
     Ok(())
+}
+
+fn handle_mouse(state: &mut TermState, event: event::MouseEvent) -> u8 {
+    match event.kind {
+        event::MouseEventKind::ScrollDown => state.render_from_offset += 1,
+        event::MouseEventKind::ScrollUp => state.render_from_offset -= 1,
+        event::MouseEventKind::Up(btn) => match btn {
+            event::MouseButton::Left => {
+                state.column = event.column;
+                state.row = event.row;
+            }
+            _ => {}
+        },
+        _ => {}
+    }
+    0
 }
 
 fn handle_input(state: &mut TermState, event: KeyEvent) -> u8 {
