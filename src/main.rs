@@ -1,9 +1,7 @@
 use std::{
     env::{self, Args},
     fs::File,
-    io::{self, stdout, Read, Stdout, Write},
-    os::windows::thread,
-    ptr::NonNull,
+    io::{stdout, Read, Stdout, Write},
     time::Duration,
 };
 
@@ -61,9 +59,11 @@ fn main() -> Result<()> {
         render_from_offset: 0,
     };
 
-    let file = File::open(&parameters.file_path).expect("Failed to open file");
+    let mut file = File::open(&parameters.file_path).expect("Failed to open file");
     let file_size = file.metadata()?.len();
-    let bytes: Vec<Result<u8>> = file.bytes().collect();
+    let mut bytes: Vec<u8> = vec![0; file_size as usize];
+    file.read(&mut bytes)
+        .expect("Failed to read bytes into buffer");
     let offset_txt = "Offset(h)";
     let minimal_width = ((parameters.byte_size + 1) * 5) + offset_txt.len() as u16;
 
@@ -91,7 +91,6 @@ fn main() -> Result<()> {
                     state.term_height = height;
                     0
                 }
-                _ => 0,
             };
 
             if code == 1 {
@@ -130,6 +129,7 @@ fn main() -> Result<()> {
                     style::Print(format!("{:#04X}", i))
                 )?;
             }
+            queue!(&mut stdout, cursor::MoveRight(3), style::Print("Decoded"))?;
 
             let how_many_to_skip = parameters.byte_size as usize * state.render_from_offset;
             //For each offset
@@ -159,31 +159,34 @@ fn main() -> Result<()> {
             )?;
             let mut iter = 0;
             for i in how_many_to_skip..bytes.len() {
-                let possible_byte = &bytes[i];
-                match possible_byte {
-                    Ok(byte) => {
-                        queue!(
-                            &mut stdout,
-                            cursor::MoveTo(byte_x, byte_y),
-                            style::Print(format!("{:#04X}", byte))
-                        )?;
+                let byte = bytes[i];
+                queue!(
+                    &mut stdout,
+                    cursor::MoveTo(byte_x, byte_y),
+                    style::Print(format!("{:#04X}", byte))
+                )?;
 
-                        byte_x += 5;
-                        iter += 1;
+                byte_x += 5;
+                iter += 1;
 
-                        //Overflow on x axis
-                        if iter >= parameters.byte_size {
-                            iter = 0;
-                            byte_x = state.padding + 13;
-                            byte_y += 1;
-                        }
+                //Overflow on x axis
+                if iter >= parameters.byte_size {
+                    queue!(&mut stdout, cursor::MoveRight(3))?;
+                    for j in i + 1 - parameters.byte_size as usize..i + 1 {
+                        let byte_to_decode = bytes[j];
 
-                        //Overflow on y axis (columns)
-                        if byte_y >= state.term_height {
-                            break;
-                        }
+                        let decoded = char::from(byte_to_decode);
+                        queue!(&mut stdout, cursor::MoveRight(0), style::Print(decoded))?;
                     }
-                    Err(_) => panic!("Failed to read byte number: {}", iter),
+
+                    iter = 0;
+                    byte_x = state.padding + 13;
+                    byte_y += 1;
+                }
+
+                //Overflow on y axis (columns)
+                if byte_y >= state.term_height {
+                    break;
                 }
             }
 
