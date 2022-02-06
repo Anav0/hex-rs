@@ -64,43 +64,32 @@ fn main() -> Result<()> {
     let mut bytes: Vec<u8> = vec![0; file_size as usize];
     file.read(&mut bytes)
         .expect("Failed to read bytes into buffer");
-    let offset_txt = "Offset(h)";
-    let minimal_width = ((parameters.byte_size + 1) * 5) + offset_txt.len() as u16;
+    let minimal_width = ((parameters.byte_size + 1) * 5) + 16;
+    let offsets = file_size as u16 / parameters.byte_size;
 
     loop {
         if poll(Duration::from_millis(100))? {
             let code = match read()? {
                 Event::Key(event) => handle_input(&mut state, event),
                 Event::Mouse(event) => handle_mouse(&mut state, event),
-                Event::Resize(width, height) => {
-                    if width < minimal_width {
-                        queue!(
-                            &mut stdout,
-                            terminal::Clear(ClearType::All),
-                            cursor::MoveTo(1, 1),
-                            style::Print(format!(
-                                "Windows too small to display {} bytes in one row",
-                                parameters.byte_size
-                            ))
-                        )?;
-                        stdout.flush()?;
-                        continue;
-                    }
-
-                    state.term_width = width;
-                    state.term_height = height;
-                    0
-                }
+                Event::Resize(width, height) => handle_resize(
+                    &mut stdout,
+                    &mut state,
+                    width,
+                    height,
+                    minimal_width,
+                    &parameters,
+                )?,
             };
+
+            //@Improvement: Change to enum
+            if code == 2 {
+                continue;
+            }
 
             if code == 1 {
                 break;
             }
-
-            let status = format!(
-                "Hex Editor ({}x{}) - {}:{}, file: {}",
-                state.term_width, state.term_height, state.column, state.row, &parameters.file_path
-            );
 
             if state.column > state.term_width {
                 state.column = state.term_width
@@ -109,86 +98,9 @@ fn main() -> Result<()> {
                 state.row = state.term_height
             }
 
-            queue!(
-                &mut stdout,
-                terminal::Clear(ClearType::All),
-                style::SetForegroundColor(Color::Yellow),
-                cursor::MoveTo(state.padding, 0),
-                style::Print(offset_txt),
-                cursor::MoveTo(state.padding, state.term_height),
-                style::Print(status),
-            )?;
-
-            let margin = (offset_txt.len() + 6) as u16;
-
-            //Render byte columns
-            for i in 0..parameters.byte_size {
-                queue!(
-                    &mut stdout,
-                    cursor::MoveTo(margin + i * 5, 0),
-                    style::Print(format!("{:#04X}", i))
-                )?;
-            }
-            queue!(&mut stdout, cursor::MoveRight(3), style::Print("Decoded"))?;
-
-            let how_many_to_skip = parameters.byte_size as usize * state.render_from_offset;
-            //For each offset
-            let file_size = file_size as u16;
-            let offsets = file_size / parameters.byte_size;
-            let mut iter = 0;
-            for i in state.render_from_offset as u16..offsets {
-                if iter >= state.term_height - 1 {
-                    break;
-                }
-                queue!(
-                    &mut stdout,
-                    style::SetForegroundColor(Color::Yellow),
-                    cursor::MoveTo(state.padding, iter + 1 as u16),
-                    style::Print(format!("{:#010x}", i * parameters.byte_size))
-                )?;
-                iter += 1;
-            }
-
-            //For each byte in file
-            let mut byte_x = state.padding + 13;
-            let mut byte_y = 1;
-            queue!(
-                &mut stdout,
-                cursor::MoveTo(byte_x, byte_y),
-                style::SetForegroundColor(Color::DarkBlue)
-            )?;
-            let mut iter = 0;
-            for i in how_many_to_skip..bytes.len() {
-                let byte = bytes[i];
-                queue!(
-                    &mut stdout,
-                    cursor::MoveTo(byte_x, byte_y),
-                    style::Print(format!("{:#04X}", byte))
-                )?;
-
-                byte_x += 5;
-                iter += 1;
-
-                //Overflow on x axis
-                if iter >= parameters.byte_size {
-                    queue!(&mut stdout, cursor::MoveRight(3))?;
-                    for j in i + 1 - parameters.byte_size as usize..i + 1 {
-                        let byte_to_decode = bytes[j];
-
-                        let decoded = char::from(byte_to_decode);
-                        queue!(&mut stdout, cursor::MoveRight(0), style::Print(decoded))?;
-                    }
-
-                    iter = 0;
-                    byte_x = state.padding + 13;
-                    byte_y += 1;
-                }
-
-                //Overflow on y axis (columns)
-                if byte_y >= state.term_height {
-                    break;
-                }
-            }
+            draw_fixed_ui(&mut stdout, &state, &parameters)?;
+            draw_offsets(&mut stdout, &state, &parameters, offsets)?;
+            draw_bytes(&mut stdout, &state, &parameters, &bytes)?;
 
             queue!(&mut stdout, cursor::MoveTo(state.column, state.row))?;
             stdout.flush()?;
@@ -203,6 +115,142 @@ fn main() -> Result<()> {
         cursor::Show,
     )?;
     terminal::disable_raw_mode()?;
+    Ok(())
+}
+
+fn handle_resize(
+    stdout: &mut Stdout,
+    state: &mut TermState,
+    width: u16,
+    height: u16,
+    minimal_width: u16,
+    parameters: &Parameters,
+) -> Result<u8> {
+    if width < minimal_width {
+        queue!(
+            stdout,
+            terminal::Clear(ClearType::All),
+            cursor::MoveTo(1, 1),
+            style::Print(format!(
+                "Windows too small to display {} bytes in one row",
+                parameters.byte_size
+            ))
+        )?;
+        stdout.flush()?;
+
+        return Ok(2);
+    }
+
+    state.term_width = width;
+    state.term_height = height;
+
+    Ok(0)
+}
+
+fn draw_offsets(
+    stdout: &mut Stdout,
+    state: &TermState,
+    parameters: &Parameters,
+    offsets: u16,
+) -> Result<()> {
+    //For each offset
+    let mut iter = 0;
+    for i in state.render_from_offset as u16..offsets {
+        if iter >= state.term_height - 1 {
+            break;
+        }
+        queue!(
+            stdout,
+            style::SetForegroundColor(Color::Yellow),
+            cursor::MoveTo(state.padding, iter + 1 as u16),
+            style::Print(format!("{:#010x}", i * parameters.byte_size))
+        )?;
+        iter += 1;
+    }
+    Ok(())
+}
+
+fn draw_bytes(
+    stdout: &mut Stdout,
+    state: &TermState,
+    parameters: &Parameters,
+    bytes: &Vec<u8>,
+) -> Result<()> {
+    //For each byte in file
+    let mut byte_x = state.padding + 13;
+    let mut byte_y = 1;
+    queue!(
+        stdout,
+        cursor::MoveTo(byte_x, byte_y),
+        style::SetForegroundColor(Color::DarkBlue)
+    )?;
+    let mut iter = 0;
+    let start_from = parameters.byte_size as usize * state.render_from_offset;
+    for i in start_from..bytes.len() {
+        let byte = bytes[i];
+        queue!(
+            stdout,
+            cursor::MoveTo(byte_x, byte_y),
+            style::Print(format!("{:#04X}", byte))
+        )?;
+
+        byte_x += 5;
+        iter += 1;
+
+        //Overflow on x axis
+        if iter >= parameters.byte_size {
+            queue!(stdout, cursor::MoveRight(3))?;
+            for j in i + 1 - parameters.byte_size as usize..i + 1 {
+                let byte_to_decode = bytes[j];
+
+                let decoded = char::from(byte_to_decode);
+                queue!(stdout, cursor::MoveRight(0), style::Print(decoded))?;
+            }
+
+            iter = 0;
+            byte_x = state.padding + 13;
+            byte_y += 1;
+        }
+
+        //Overflow on y axis (columns)
+        if byte_y >= state.term_height {
+            break;
+        }
+    }
+    Ok(())
+}
+
+fn draw_fixed_ui<W: Write>(
+    stdout: &mut W,
+    state: &TermState,
+    parameters: &Parameters,
+) -> Result<()> {
+    let status = format!(
+        "Hex Editor ({}x{}) - {}:{}, file: {}",
+        state.term_width, state.term_height, state.column, state.row, &parameters.file_path
+    );
+    //Status
+    queue!(
+        stdout,
+        terminal::Clear(ClearType::All),
+        style::SetForegroundColor(Color::Yellow),
+        cursor::MoveTo(state.padding, 0),
+        style::Print("Offset(h)"),
+        cursor::MoveTo(state.padding, state.term_height),
+        style::Print(status),
+        cursor::MoveTo(state.padding + 12, 0),
+    )?;
+
+    //Byte columns
+    for i in 0..parameters.byte_size {
+        queue!(
+            stdout,
+            cursor::MoveRight(1),
+            style::Print(format!("{:#04X}", i))
+        )?;
+    }
+    //Decoded
+    queue!(stdout, cursor::MoveRight(3), style::Print("Decoded"))?;
     Ok(())
 }
 
