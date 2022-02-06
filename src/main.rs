@@ -27,6 +27,7 @@ struct TermState {
     pub term_width: u16,
     pub term_height: u16,
     pub padding: u16,
+    pub render_from_offset: usize,
 }
 
 impl From<Args> for Parameters {
@@ -57,6 +58,7 @@ fn main() -> Result<()> {
         term_height: size.1,
         term_width: size.0,
         padding: 2,
+        render_from_offset: 0,
     };
 
     let file = File::open(&parameters.file_path).expect("Failed to open file");
@@ -119,6 +121,7 @@ fn main() -> Result<()> {
 
             let margin = (offset_txt.len() + 6) as u16;
 
+            //Render byte columns
             for i in 0..parameters.byte_size {
                 queue!(
                     &mut stdout,
@@ -127,19 +130,22 @@ fn main() -> Result<()> {
                 )?;
             }
 
+            let how_many_to_skip = parameters.byte_size as usize * state.render_from_offset;
             //For each offset
             let file_size = file_size as u16;
-            let sections = file_size / parameters.byte_size;
-            for i in 1..sections + 1 {
-                if i >= state.term_height {
+            let offsets = file_size / parameters.byte_size;
+            let mut iter = 0;
+            for i in state.render_from_offset as u16..offsets {
+                if iter >= state.term_height - 1 {
                     break;
                 }
                 queue!(
                     &mut stdout,
                     style::SetForegroundColor(Color::Yellow),
-                    cursor::MoveTo(state.padding, i as u16),
+                    cursor::MoveTo(state.padding, iter + 1 as u16),
                     style::Print(format!("{:#010x}", i * parameters.byte_size))
                 )?;
+                iter += 1;
             }
 
             //For each byte in file
@@ -151,7 +157,8 @@ fn main() -> Result<()> {
                 style::SetForegroundColor(Color::DarkBlue)
             )?;
             let mut iter = 0;
-            for possible_byte in &bytes {
+            for i in how_many_to_skip..bytes.len() {
+                let possible_byte = &bytes[i];
                 match possible_byte {
                     Ok(byte) => {
                         queue!(
@@ -217,12 +224,12 @@ fn handle_input(state: &mut TermState, event: KeyEvent) -> u8 {
                 state.column += 1;
             }
         }
-        KeyCode::PageUp => state.padding += 1,
-        KeyCode::PageDown => {
-            if state.padding != 0 {
-                state.padding -= 1
+        KeyCode::PageUp => {
+            if state.render_from_offset != 0 {
+                state.render_from_offset -= 1
             }
         }
+        KeyCode::PageDown => state.render_from_offset += 1,
         KeyCode::Char(char) => match char {
             'q' => return 1,
             _ => return 0,
