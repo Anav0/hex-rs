@@ -64,6 +64,7 @@ fn main() -> Result<()> {
     let mut bytes: Vec<u8> = vec![0; file_size as usize];
     file.read(&mut bytes)
         .expect("Failed to read bytes into buffer");
+
     let minimal_width = ((parameters.byte_size + 1) * 5) + 16;
     let offsets = file_size as u16 / parameters.byte_size;
 
@@ -98,11 +99,15 @@ fn main() -> Result<()> {
                 state.row = state.term_height
             }
 
+            queue!(&mut stdout, terminal::Clear(ClearType::All))?;
+
             draw_fixed_ui(&mut stdout, &state, &parameters)?;
             draw_offsets(&mut stdout, &state, &parameters, offsets)?;
             draw_bytes(&mut stdout, &state, &parameters, &bytes)?;
 
+            //Update cursor position
             queue!(&mut stdout, cursor::MoveTo(state.column, state.row))?;
+
             stdout.flush()?;
         }
     }
@@ -153,9 +158,8 @@ fn draw_offsets(
     parameters: &Parameters,
     offsets: u16,
 ) -> Result<()> {
-    //For each offset
     let mut iter = 0;
-    for i in state.render_from_offset as u16..offsets {
+    for i in state.render_from_offset as u16..offsets + 1 {
         if iter >= state.term_height - 1 {
             break;
         }
@@ -179,13 +183,11 @@ fn draw_bytes(
     //For each byte in file
     let mut byte_x = state.padding + 13;
     let mut byte_y = 1;
-    queue!(
-        stdout,
-        cursor::MoveTo(byte_x, byte_y),
-        style::SetForegroundColor(Color::DarkBlue)
-    )?;
+    queue!(stdout, style::SetForegroundColor(Color::DarkBlue))?;
+
     let mut iter = 0;
     let start_from = parameters.byte_size as usize * state.render_from_offset;
+
     for i in start_from..bytes.len() {
         let byte = bytes[i];
         queue!(
@@ -198,15 +200,15 @@ fn draw_bytes(
         iter += 1;
 
         //Overflow on x axis
-        if iter >= parameters.byte_size {
-            queue!(stdout, cursor::MoveRight(3))?;
-            for j in i + 1 - parameters.byte_size as usize..i + 1 {
-                let byte_to_decode = bytes[j];
-
-                let decoded = char::from(byte_to_decode);
+        if iter >= parameters.byte_size || i == bytes.len() - 1 {
+            queue!(stdout, cursor::MoveTo(97, byte_y))?;
+            for j in i + 1 - iter as usize..=i {
+                let decoded = match bytes[j].is_ascii_whitespace() {
+                    true => ' ',
+                    false => char::from(bytes[j]),
+                };
                 queue!(stdout, cursor::MoveRight(0), style::Print(decoded))?;
             }
-
             iter = 0;
             byte_x = state.padding + 13;
             byte_y += 1;
@@ -232,7 +234,6 @@ fn draw_fixed_ui<W: Write>(
     //Status
     queue!(
         stdout,
-        terminal::Clear(ClearType::All),
         style::SetForegroundColor(Color::Yellow),
         cursor::MoveTo(state.padding, 0),
         style::Print("Offset(h)"),
