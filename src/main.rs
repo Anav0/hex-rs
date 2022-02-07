@@ -1,4 +1,5 @@
 use std::{
+    collections::HashMap,
     env::{self, Args},
     fs::File,
     io::{stdout, Read, Stdout, Write},
@@ -13,12 +14,14 @@ use crossterm::{
     terminal::ClearType,
 };
 use crossterm::{terminal, Result};
+use keyboard::Shortcuts;
+
+mod keyboard;
 
 struct Parameters {
     file_path: String,
     byte_size: u16,
 }
-
 struct TermState {
     pub row: u16,
     pub column: u16,
@@ -68,10 +71,12 @@ fn main() -> Result<()> {
     let minimal_width = ((parameters.byte_size + 1) * 5) + 16;
     let offsets = file_size as u16 / parameters.byte_size;
 
+    let shortcuts = Shortcuts::new();
+
     loop {
         if poll(Duration::from_millis(100))? {
             let code = match read()? {
-                Event::Key(event) => handle_input(&mut state, event),
+                Event::Key(event) => handle_input(&mut state, event, &shortcuts),
                 Event::Mouse(event) => handle_mouse(&mut state, event),
                 Event::Resize(width, height) => handle_resize(
                     &mut stdout,
@@ -203,10 +208,7 @@ fn draw_bytes(
         if iter >= parameters.byte_size || i == bytes.len() - 1 {
             queue!(stdout, cursor::MoveTo(97, byte_y))?;
             for j in i + 1 - iter as usize..=i {
-                let decoded = match bytes[j].is_ascii_whitespace() {
-                    true => ' ',
-                    false => char::from(bytes[j]),
-                };
+                let decoded = get_symbol(bytes[j]);
                 queue!(stdout, cursor::MoveRight(0), style::Print(decoded))?;
             }
             iter = 0;
@@ -220,6 +222,18 @@ fn draw_bytes(
         }
     }
     Ok(())
+}
+
+fn get_symbol(byte: u8) -> char {
+    if byte.is_ascii_whitespace() {
+        return ' ';
+    }
+
+    if !byte.is_ascii() || byte.is_ascii_control() {
+        return '.';
+    }
+
+    char::from(byte)
 }
 
 fn draw_fixed_ui<W: Write>(
@@ -271,39 +285,9 @@ fn handle_mouse(state: &mut TermState, event: event::MouseEvent) -> u8 {
     0
 }
 
-fn handle_input(state: &mut TermState, event: KeyEvent) -> u8 {
-    match event.code {
-        KeyCode::Up => {
-            if state.row != 0 {
-                state.row -= 1;
-            }
-        }
-        KeyCode::Left => {
-            if state.column != 0 {
-                state.column -= 1;
-            }
-        }
-        KeyCode::Down => {
-            if state.row != state.term_height {
-                state.row += 1;
-            }
-        }
-        KeyCode::Right => {
-            if state.column != state.term_width {
-                state.column += 1;
-            }
-        }
-        KeyCode::PageUp => {
-            if state.render_from_offset != 0 {
-                state.render_from_offset -= 1
-            }
-        }
-        KeyCode::PageDown => state.render_from_offset += 1,
-        KeyCode::Char(char) => match char {
-            'q' => return 1,
-            _ => return 0,
-        },
-        _ => {}
+fn handle_input(state: &mut TermState, event: KeyEvent, shortcuts: &Shortcuts) -> u8 {
+    match shortcuts.get(&event.code) {
+        Some(action) => action(state),
+        None => 0,
     }
-    0
 }
