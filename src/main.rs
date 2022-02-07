@@ -14,9 +14,14 @@ use crossterm::{
     terminal::ClearType,
 };
 use crossterm::{terminal, Result};
-use keyboard::Shortcuts;
+use keyboard::Keyboard;
 
 mod keyboard;
+
+enum StatusMode {
+    General,
+    Keys,
+}
 
 struct Parameters {
     file_path: String,
@@ -29,6 +34,7 @@ struct TermState {
     pub term_height: u16,
     pub padding: u16,
     pub render_from_offset: usize,
+    pub status_mode: StatusMode,
 }
 
 impl From<Args> for Parameters {
@@ -60,6 +66,7 @@ fn main() -> Result<()> {
         term_width: size.0,
         padding: 2,
         render_from_offset: 0,
+        status_mode: StatusMode::General,
     };
 
     let mut file = File::open(&parameters.file_path).expect("Failed to open file");
@@ -71,12 +78,12 @@ fn main() -> Result<()> {
     let minimal_width = ((parameters.byte_size + 1) * 5) + 16;
     let offsets = file_size as u16 / parameters.byte_size;
 
-    let shortcuts = Shortcuts::new();
+    let keyboard = Keyboard::new();
 
     loop {
         if poll(Duration::from_millis(100))? {
             let code = match read()? {
-                Event::Key(event) => handle_input(&mut state, event, &shortcuts),
+                Event::Key(event) => handle_input(&mut state, event, &keyboard),
                 Event::Mouse(event) => handle_mouse(&mut state, event),
                 Event::Resize(width, height) => handle_resize(
                     &mut stdout,
@@ -106,7 +113,7 @@ fn main() -> Result<()> {
 
             queue!(&mut stdout, terminal::Clear(ClearType::All))?;
 
-            draw_fixed_ui(&mut stdout, &state, &parameters)?;
+            draw_fixed_ui(&mut stdout, &state, &parameters, &keyboard)?;
             draw_offsets(&mut stdout, &state, &parameters, offsets)?;
             draw_bytes(&mut stdout, &state, &parameters, &bytes)?;
 
@@ -240,12 +247,10 @@ fn draw_fixed_ui<W: Write>(
     stdout: &mut W,
     state: &TermState,
     parameters: &Parameters,
+    keyboard: &Keyboard,
 ) -> Result<()> {
-    let status = format!(
-        "Hex Editor ({}x{}) - {}:{}, file: {}",
-        state.term_width, state.term_height, state.column, state.row, &parameters.file_path
-    );
-    //Status
+    let status = get_status(state, parameters, keyboard);
+
     queue!(
         stdout,
         style::SetForegroundColor(Color::Yellow),
@@ -269,6 +274,15 @@ fn draw_fixed_ui<W: Write>(
     Ok(())
 }
 
+fn get_status(state: &TermState, parameters: &Parameters, keyboard: &Keyboard) -> String {
+    match state.status_mode {
+        StatusMode::General => format!(
+            "Hex Editor ({}x{}) - {}:{}, file: {}",
+            state.term_width, state.term_height, state.column, state.row, &parameters.file_path
+        ),
+        StatusMode::Keys => keyboard.help(),
+    }
+}
 fn handle_mouse(state: &mut TermState, event: event::MouseEvent) -> u8 {
     match event.kind {
         event::MouseEventKind::ScrollDown => state.render_from_offset += 1,
@@ -285,8 +299,8 @@ fn handle_mouse(state: &mut TermState, event: event::MouseEvent) -> u8 {
     0
 }
 
-fn handle_input(state: &mut TermState, event: KeyEvent, shortcuts: &Shortcuts) -> u8 {
-    match shortcuts.get(&event.code) {
+fn handle_input(state: &mut TermState, event: KeyEvent, keyboard: &Keyboard) -> u8 {
+    match keyboard.get(&event.code) {
         Some(action) => action(state),
         None => 0,
     }

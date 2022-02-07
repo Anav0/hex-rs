@@ -1,6 +1,6 @@
 #![allow(dead_code)]
 
-use crossterm::{event::KeyCode, style::Stylize};
+use crossterm::event::KeyCode;
 use directories::ProjectDirs;
 use std::{
     collections::HashMap,
@@ -9,15 +9,15 @@ use std::{
     path::PathBuf,
 };
 
-use crate::TermState;
+use crate::{StatusMode, TermState};
 
 pub(crate) type KeyAction = dyn Fn(&mut TermState) -> u8;
 
-pub(crate) struct Shortcuts<'a> {
-    pub pairs: HashMap<KeyCode, &'a KeyAction>,
+pub(crate) struct Keyboard<'a> {
+    keys_and_actions: HashMap<KeyCode, &'a KeyAction>,
     help: Vec<String>,
 }
-impl<'a> Shortcuts<'a> {
+impl<'a> Keyboard<'a> {
     pub fn new() -> Self {
         let config_path = ProjectDirs::from("com", "Papilionem", "Hex editor")
             .expect("Failed to create config path");
@@ -54,22 +54,25 @@ impl<'a> Shortcuts<'a> {
             let action = *splited.last().unwrap();
 
             let matched_key: KeyCode = match_key(key);
-            let matched_action: &KeyAction = match_action(action);
+            let (matched_action, desc) = match_action(action);
 
             pairs.insert(matched_key, matched_action);
-            help.push(format!("{}: {}", key, action));
+            help.push(format!("{}: {}", key, desc));
 
             iter += 1;
         }
-        Self { pairs, help }
+        Self {
+            keys_and_actions: pairs,
+            help,
+        }
     }
 
     pub fn get(&self, code: &KeyCode) -> Option<&&KeyAction> {
-        self.pairs.get(&code)
+        self.keys_and_actions.get(&code)
     }
 
     pub fn help(&self) -> String {
-        self.help.join(" ")
+        self.help.join(", ")
     }
 }
 fn match_key(key: &str) -> KeyCode {
@@ -104,6 +107,7 @@ fn match_key(key: &str) -> KeyCode {
         "left" => KeyCode::Left,
         "right" => KeyCode::Right,
         "up" => KeyCode::Up,
+        "down" => KeyCode::Down,
         "pg_up" => KeyCode::PageUp,
         "pg_down" => KeyCode::PageDown,
         "enter" => KeyCode::Enter,
@@ -119,25 +123,28 @@ fn match_key(key: &str) -> KeyCode {
         _ => panic!("Unrecognized key: '{}'", key),
     }
 }
-fn match_action<'b>(action: &str) -> &'b KeyAction {
+
+fn match_action<'b>(action: &str) -> (&'b KeyAction, &str) {
     match action {
-        "go_left" => &go_left,
-        "go_right" => &go_right,
-        "go_down" => &go_down,
-        "go_up" => &go_up,
-        "scroll_down" => &scroll_down,
-        "scroll_up" => &scroll_up,
-        "quit" => &quit,
-        "exit" => &quit,
-        "delete" => &delete,
-        "edit" => &edit,
-        "remove" => &remove,
-        "save" => &save,
-        "help" => &help,
+        "go_left" => (&go_left, "left"),
+        "go_right" => (&go_right, "right"),
+        "go_down" => (&go_down, "down"),
+        "go_up" => (&go_up, "up"),
+        "scroll_down" => (&scroll_down, "scroll down"),
+        "scroll_up" => (&scroll_up, "scroll up"),
+        "quit" => (&quit, "quit"),
+        "exit" => (&quit, "quit"),
+        "delete" => (&delete, "remove byte"),
+        "edit" => (&edit, "change byte"),
+        "save" => (&save, "save changes"),
+        "help" => (&help, "help"),
+        "general_status" => (&general_status, "general status"),
+        "keys_status" => (&keys_status, "keybindings"),
         _ => panic!("Unrecognized action: '{}'", action),
     }
 }
-pub fn create_config(path: &PathBuf) -> PathBuf {
+
+fn create_config(path: &PathBuf) -> PathBuf {
     fs::create_dir_all(path).expect(&format!("Failed to create config dir: '{:?}'", &path));
 
     let mut key_path = path.clone();
@@ -153,6 +160,7 @@ pub fn create_config(path: &PathBuf) -> PathBuf {
     keys += "left    go_left\n";
     keys += "right   go_right\n";
     keys += "up      left go_up\n";
+    keys += "down    left go_down\n";
     keys += "pg_up   scroll_up\n";
     keys += "pg_down scroll_down\n";
     keys += "q       quit\n";
@@ -160,11 +168,23 @@ pub fn create_config(path: &PathBuf) -> PathBuf {
     keys += "f2      edit\n";
     keys += "f3      remove\n";
     keys += "f5      save\n";
+    keys += "1       general_status\n";
+    keys += "2       keys_status\n";
 
     file.write_all(keys.as_bytes())
         .expect("Failed to write to keys config file");
 
     key_path
+}
+
+fn general_status(state: &mut TermState) -> u8 {
+    state.status_mode = StatusMode::General;
+    0
+}
+
+fn keys_status(state: &mut TermState) -> u8 {
+    state.status_mode = StatusMode::Keys;
+    0
 }
 
 fn help(state: &mut TermState) -> u8 {
