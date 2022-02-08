@@ -9,7 +9,13 @@ use std::{
     path::PathBuf,
 };
 
-use crate::{Direction, StatusMode, TermState, Action};
+use crate::{
+    actions::{
+        delete, edit, general_status, go_down, go_left, go_right, go_up, help, keys_status, quit,
+        save, scroll_down, scroll_up,
+    },
+    Action, TermState,
+};
 
 pub(crate) type KeyAction = dyn Fn(&mut TermState) -> Action;
 
@@ -75,6 +81,7 @@ impl<'a> Keyboard<'a> {
         self.help.join(", ")
     }
 }
+
 fn match_key(key: &str) -> KeyCode {
     let uniform_key = key.to_lowercase();
 
@@ -175,106 +182,4 @@ fn create_config(path: &PathBuf) -> PathBuf {
         .expect("Failed to write to keys config file");
 
     key_path
-}
-
-
-fn general_status(state: &mut TermState) -> Action {
-    state.status_mode = StatusMode::General;
-    Action::DrawBytes
-}
-
-fn keys_status(state: &mut TermState) -> Action {
-    state.status_mode = StatusMode::Keys;
-    Action::DrawBytes
-}
-
-fn help(state: &mut TermState) -> Action {
-    Action::DrawBytes
-}
-
-fn remove(state: &mut TermState) -> Action {
-    Action::DrawBytes
-}
-
-fn save(state: &mut TermState) -> Action {
-    Action::DrawBytes
-}
-
-fn edit(state: &mut TermState) -> Action {
-    Action::DrawBytes
-}
-
-fn delete(state: &mut TermState) -> Action {
-    Action::DrawBytes
-}
-
-fn calculate_leap(state: &TermState, direction: Direction) -> u16 {
-    let dimensions = state.dimensions;
-
-    //Do not allow jump into offsets
-    if direction == Direction::Left && state.column == dimensions.bytes.0 {
-        return 0;
-    }
-
-    //Jumping from last byte onto first char of decode section
-    if state.column == dimensions.bytes.1 - 4 && direction == Direction::Right {
-        return 7;
-    }
-
-    //Jumping from decode to last byte
-    if state.column == dimensions.decoded.0 && Direction::Left == direction {
-        return 7;
-    }
-
-    //Jumping between bytes
-    if state.column >= dimensions.bytes.0 && state.column <= dimensions.bytes.1 {
-        return 5;
-    }
-
-    1
-}
-
-fn go_left(state: &mut TermState) -> Action {
-    let jump_by = calculate_leap(&state, Direction::Left);
-    if jump_by <= state.column {
-        state.column -= jump_by;
-    }
-    Action::DrawBytes
-}
-
-fn go_right(state: &mut TermState) -> Action {
-    let jump_by = calculate_leap(&state, Direction::Right);
-    if state.column + jump_by <= state.term_width {
-        state.column += jump_by;
-    }
-    Action::DrawBytes
-}
-
-fn go_up(state: &mut TermState) -> Action {
-    if state.row != 0 {
-        state.row -= 1;
-    }
-    Action::DrawBytes
-}
-
-fn go_down(state: &mut TermState) -> Action {
-    if state.row != state.term_height {
-        state.row += 1;
-    }
-    Action::DrawBytes
-}
-
-fn scroll_up(state: &mut TermState) -> Action {
-    if state.render_from_offset != 0 {
-        state.render_from_offset -= 1
-    }
-    Action::DrawBytes
-}
-
-fn scroll_down(state: &mut TermState) -> Action {
-    state.render_from_offset += 1;
-    Action::DrawBytes
-}
-fn quit(state: &mut TermState) -> Action {
-    Action::Quit
 }
