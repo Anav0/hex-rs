@@ -1,5 +1,4 @@
 use std::{
-    collections::HashMap,
     env::{self, Args},
     fs::File,
     io::{stdout, Read, Stdout, Write},
@@ -18,6 +17,47 @@ use keyboard::Keyboard;
 
 mod keyboard;
 
+pub(crate) struct Dimensions {
+    pub offsets: (u16, u16),
+    pub bytes: (u16, u16),
+    pub decoded: (u16, u16),
+}
+
+impl Dimensions {
+    pub fn new(padding: u16, parameters: &Parameters) -> Self {
+        let offsets_start = padding;
+        let offsets_end = offsets_start + 10;
+        let offsets = (offsets_start, offsets_end);
+
+        let bytes_start = offsets_end + 3;
+        let bytes_end = (bytes_start + parameters.byte_size * 5) - 1;
+        let bytes = (bytes_start, bytes_end);
+
+        let decoded_start = bytes_end + 3;
+        let decoded_end = decoded_start + parameters.byte_size;
+        let decoded = (decoded_start, decoded_end);
+
+        Self {
+            bytes,
+            decoded,
+            offsets,
+        }
+    }
+}
+
+pub(crate) enum Action {
+    Quit,
+    DrawBytes,
+    DrawHelp,
+    SkipDrawing,
+}
+
+#[derive(PartialEq)]
+enum Direction {
+    Left,
+    Right,
+}
+
 enum StatusMode {
     General,
     Keys,
@@ -27,7 +67,8 @@ struct Parameters {
     file_path: String,
     byte_size: u16,
 }
-struct TermState {
+
+struct TermState<'a> {
     pub row: u16,
     pub column: u16,
     pub term_width: u16,
@@ -35,6 +76,7 @@ struct TermState {
     pub padding: u16,
     pub render_from_offset: usize,
     pub status_mode: StatusMode,
+    pub dimensions: &'a Dimensions,
 }
 
 impl From<Args> for Parameters {
@@ -58,22 +100,22 @@ fn main() -> Result<()> {
     terminal::enable_raw_mode()?;
 
     let size = terminal::size()?;
+    let padding = 2;
+    let dimensions = Dimensions::new(padding, &parameters);
 
     let mut state = TermState {
         row: 1,
-        column: 1,
+        column: dimensions.bytes.0,
         term_height: size.1,
         term_width: size.0,
-        padding: 2,
+        padding,
         render_from_offset: 0,
         status_mode: StatusMode::General,
+        dimensions: &dimensions,
     };
 
-    let mut file = File::open(&parameters.file_path).expect("Failed to open file");
-    let file_size = file.metadata()?.len();
-    let mut bytes: Vec<u8> = vec![0; file_size as usize];
-    file.read(&mut bytes)
-        .expect("Failed to read bytes into buffer");
+    let bytes = get_bytes(&parameters.file_path)?;
+    let file_size = bytes.len();
 
     let minimal_width = ((parameters.byte_size + 1) * 5) + 16;
     let offsets = file_size as u16 / parameters.byte_size;
@@ -81,8 +123,8 @@ fn main() -> Result<()> {
     let keyboard = Keyboard::new();
 
     loop {
-        if poll(Duration::from_millis(100))? {
-            let code = match read()? {
+        if poll(Duration::from_millis(16))? {
+            let action = match read()? {
                 Event::Key(event) => handle_input(&mut state, event, &keyboard),
                 Event::Mouse(event) => handle_mouse(&mut state, event),
                 Event::Resize(width, height) => handle_resize(
@@ -95,20 +137,10 @@ fn main() -> Result<()> {
                 )?,
             };
 
-            //@Improvement: Change to enum
-            if code == 2 {
-                continue;
-            }
-
-            if code == 1 {
-                break;
-            }
-
-            if state.column > state.term_width {
-                state.column = state.term_width
-            }
-            if state.row > state.term_height {
-                state.row = state.term_height
+            match action {
+                Action::Quit => break,
+                Action::SkipDrawing => continue,
+                _ => {}
             }
 
             queue!(&mut stdout, terminal::Clear(ClearType::All))?;
@@ -117,7 +149,6 @@ fn main() -> Result<()> {
             draw_offsets(&mut stdout, &state, &parameters, offsets)?;
             draw_bytes(&mut stdout, &state, &parameters, &bytes)?;
 
-            //Update cursor position
             queue!(&mut stdout, cursor::MoveTo(state.column, state.row))?;
 
             stdout.flush()?;
@@ -135,6 +166,16 @@ fn main() -> Result<()> {
     Ok(())
 }
 
+fn get_bytes(path: &str) -> Result<Vec<u8>> {
+    let mut file = File::open(path).expect("Failed to open file");
+    let file_size = file.metadata()?.len();
+    let mut bytes: Vec<u8> = vec![0; file_size as usize];
+    file.read(&mut bytes)
+        .expect("Failed to read bytes into buffer");
+
+    Ok(bytes)
+}
+
 fn handle_resize(
     stdout: &mut Stdout,
     state: &mut TermState,
@@ -142,7 +183,7 @@ fn handle_resize(
     height: u16,
     minimal_width: u16,
     parameters: &Parameters,
-) -> Result<u8> {
+) -> Result<Action> {
     if width < minimal_width {
         queue!(
             stdout,
@@ -155,13 +196,21 @@ fn handle_resize(
         )?;
         stdout.flush()?;
 
-        return Ok(2);
+        //Check if cursor is not left behind
+        if state.column > state.term_width {
+            state.column = state.term_width
+        }
+        if state.row > state.term_height {
+            state.row = state.term_height
+        }
+
+        return Ok(Action::SkipDrawing);
     }
 
     state.term_width = width;
     state.term_height = height;
 
-    Ok(0)
+    Ok(Action::DrawBytes)
 }
 
 fn draw_offsets(
@@ -283,7 +332,8 @@ fn get_status(state: &TermState, parameters: &Parameters, keyboard: &Keyboard) -
         StatusMode::Keys => keyboard.help(),
     }
 }
-fn handle_mouse(state: &mut TermState, event: event::MouseEvent) -> u8 {
+
+fn handle_mouse(state: &mut TermState, event: event::MouseEvent) -> Action {
     match event.kind {
         event::MouseEventKind::ScrollDown => state.render_from_offset += 1,
         event::MouseEventKind::ScrollUp => state.render_from_offset -= 1,
@@ -296,12 +346,12 @@ fn handle_mouse(state: &mut TermState, event: event::MouseEvent) -> u8 {
         },
         _ => {}
     }
-    0
+    Action::DrawBytes
 }
 
-fn handle_input(state: &mut TermState, event: KeyEvent, keyboard: &Keyboard) -> u8 {
+fn handle_input(state: &mut TermState, event: KeyEvent, keyboard: &Keyboard) -> Action {
     match keyboard.get(&event.code) {
         Some(action) => action(state),
-        None => 0,
+        None => Action::DrawBytes,
     }
 }

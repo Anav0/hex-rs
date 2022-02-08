@@ -9,9 +9,9 @@ use std::{
     path::PathBuf,
 };
 
-use crate::{StatusMode, TermState};
+use crate::{Direction, StatusMode, TermState, Action};
 
-pub(crate) type KeyAction = dyn Fn(&mut TermState) -> u8;
+pub(crate) type KeyAction = dyn Fn(&mut TermState) -> Action;
 
 pub(crate) struct Keyboard<'a> {
     keys_and_actions: HashMap<KeyCode, &'a KeyAction>,
@@ -177,74 +177,104 @@ fn create_config(path: &PathBuf) -> PathBuf {
     key_path
 }
 
-fn general_status(state: &mut TermState) -> u8 {
+
+fn general_status(state: &mut TermState) -> Action {
     state.status_mode = StatusMode::General;
-    0
+    Action::DrawBytes
 }
 
-fn keys_status(state: &mut TermState) -> u8 {
+fn keys_status(state: &mut TermState) -> Action {
     state.status_mode = StatusMode::Keys;
-    0
+    Action::DrawBytes
 }
 
-fn help(state: &mut TermState) -> u8 {
-    0
+fn help(state: &mut TermState) -> Action {
+    Action::DrawBytes
 }
 
-fn remove(state: &mut TermState) -> u8 {
-    0
+fn remove(state: &mut TermState) -> Action {
+    Action::DrawBytes
 }
 
-fn save(state: &mut TermState) -> u8 {
-    0
+fn save(state: &mut TermState) -> Action {
+    Action::DrawBytes
 }
 
-fn edit(state: &mut TermState) -> u8 {
-    0
+fn edit(state: &mut TermState) -> Action {
+    Action::DrawBytes
 }
 
-fn delete(state: &mut TermState) -> u8 {
-    0
+fn delete(state: &mut TermState) -> Action {
+    Action::DrawBytes
 }
 
-fn go_left(state: &mut TermState) -> u8 {
-    if state.column != 0 {
-        state.column -= 1;
+fn calculate_leap(state: &TermState, direction: Direction) -> u16 {
+    let dimensions = state.dimensions;
+
+    //Do not allow jump into offsets
+    if direction == Direction::Left && state.column == dimensions.bytes.0 {
+        return 0;
     }
-    0
-}
 
-fn go_right(state: &mut TermState) -> u8 {
-    if state.column != state.term_width {
-        state.column += 1;
+    //Jumping from last byte onto first char of decode section
+    if state.column == dimensions.bytes.1 - 4 && direction == Direction::Right {
+        return 7;
     }
-    0
+
+    //Jumping from decode to last byte
+    if state.column == dimensions.decoded.0 && Direction::Left == direction {
+        return 7;
+    }
+
+    //Jumping between bytes
+    if state.column >= dimensions.bytes.0 && state.column <= dimensions.bytes.1 {
+        return 5;
+    }
+
+    1
 }
 
-fn go_up(state: &mut TermState) -> u8 {
+fn go_left(state: &mut TermState) -> Action {
+    let jump_by = calculate_leap(&state, Direction::Left);
+    if jump_by <= state.column {
+        state.column -= jump_by;
+    }
+    Action::DrawBytes
+}
+
+fn go_right(state: &mut TermState) -> Action {
+    let jump_by = calculate_leap(&state, Direction::Right);
+    if state.column + jump_by <= state.term_width {
+        state.column += jump_by;
+    }
+    Action::DrawBytes
+}
+
+fn go_up(state: &mut TermState) -> Action {
     if state.row != 0 {
         state.row -= 1;
     }
-    0
+    Action::DrawBytes
 }
 
-fn go_down(state: &mut TermState) -> u8 {
+fn go_down(state: &mut TermState) -> Action {
     if state.row != state.term_height {
         state.row += 1;
     }
-    0
+    Action::DrawBytes
 }
 
-fn scroll_up(state: &mut TermState) -> u8 {
+fn scroll_up(state: &mut TermState) -> Action {
     if state.render_from_offset != 0 {
         state.render_from_offset -= 1
     }
-    0
+    Action::DrawBytes
 }
-fn scroll_down(state: &mut TermState) -> u8 {
+
+fn scroll_down(state: &mut TermState) -> Action {
     state.render_from_offset += 1;
-    0
+    Action::DrawBytes
 }
-fn quit(state: &mut TermState) -> u8 {
-    1
+fn quit(state: &mut TermState) -> Action {
+    Action::Quit
 }
