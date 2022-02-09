@@ -86,9 +86,17 @@ struct TermState<'a> {
 impl From<Args> for Parameters {
     fn from(args: Args) -> Self {
         let collected_args: Vec<String> = args.collect();
+        let mut byte_size = 16;
+
+        if collected_args.len() >= 3 {
+            byte_size = collected_args[2]
+                .parse()
+                .expect("Second argument must be u16");
+        }
+
         Self {
             file_path: collected_args[1].clone(),
-            byte_size: 16,
+            byte_size,
         }
     }
 }

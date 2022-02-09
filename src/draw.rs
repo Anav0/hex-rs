@@ -66,7 +66,7 @@ pub(crate) fn draw_bytes(
 
         //Overflow on x axis
         if iter >= parameters.byte_size || i == bytes.len() - 1 {
-            queue!(stdout, cursor::MoveTo(97, byte_y))?;
+            queue!(stdout, cursor::MoveTo(state.dimensions.decoded.0, byte_y))?;
             for j in i + 1 - iter as usize..=i {
                 let decoded = get_symbol(bytes[j]);
                 queue!(stdout, cursor::MoveRight(0), style::Print(decoded))?;
