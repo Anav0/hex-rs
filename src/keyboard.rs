@@ -77,8 +77,8 @@ impl<'a> Keyboard<'a> {
         self.keys_and_actions.get(&code)
     }
 
-    pub fn help(&self) -> String {
-        self.help.join(", ")
+    pub fn help(&self, separator: &str) -> String {
+        self.help.join(separator)
     }
 }
 
@@ -133,20 +133,20 @@ fn match_key(key: &str) -> KeyCode {
 
 fn match_action<'b>(action: &str) -> (&'b KeyAction, &str) {
     match action {
-        "go_left" => (&go_left, "left"),
-        "go_right" => (&go_right, "right"),
-        "go_down" => (&go_down, "down"),
-        "go_up" => (&go_up, "up"),
-        "scroll_down" => (&scroll_down, "scroll down"),
-        "scroll_up" => (&scroll_up, "scroll up"),
+        "go_left" => (&go_left, "moves cursor to the previous element"),
+        "go_right" => (&go_right, "moves cursor to the next element"),
+        "go_down" => (&go_down, "moves cursor down an offset"),
+        "go_up" => (&go_up, "moves cursor up an offset"),
+        "scroll_down" => (&scroll_down, "next offset"),
+        "scroll_up" => (&scroll_up, "pervious offset"),
         "quit" => (&quit, "quit"),
         "exit" => (&quit, "quit"),
         "delete" => (&delete, "remove byte"),
         "edit" => (&edit, "change byte"),
         "save" => (&save, "save changes"),
-        "help" => (&help, "help"),
-        "general_status" => (&general_status, "general status"),
-        "keys_status" => (&keys_status, "keybindings"),
+        "help" => (&help, "print help"),
+        "general_status" => (&general_status, "changes status bar to its general state"),
+        "keys_status" => (&keys_status, "changes status bar to show key bindings"),
         _ => panic!("Unrecognized action: '{}'", action),
     }
 }
@@ -171,7 +171,7 @@ fn create_config(path: &PathBuf) -> PathBuf {
     keys += "pg_up   scroll_up\n";
     keys += "pg_down scroll_down\n";
     keys += "q       quit\n";
-    keys += "f1      help\n";
+    keys += "h       help\n";
     keys += "f2      edit\n";
     keys += "f3      remove\n";
     keys += "f5      save\n";

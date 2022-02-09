@@ -11,6 +11,10 @@ pub(crate) fn keys_status(state: &mut TermState) -> Action {
 }
 
 pub(crate) fn help(state: &mut TermState) -> Action {
+    if state.last_action != Action::DrawHelp {
+        return Action::DrawHelp;
+    }
+
     Action::DrawBytes
 }
 

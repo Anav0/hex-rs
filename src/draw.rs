@@ -3,6 +3,7 @@ use std::{io::Stdout, io::Write, ops::Range};
 use crossterm::{
     cursor, queue,
     style::{self, Color, SetBackgroundColor, SetForegroundColor},
+    terminal::{self, ClearType},
     Result,
 };
 
@@ -39,7 +40,30 @@ pub(crate) fn draw_fixed_ui<W: Write>(
     queue!(stdout, cursor::MoveRight(3), style::Print("Decoded"))?;
     Ok(())
 }
+pub(crate) fn draw_help(stdout: &mut Stdout, keyboard: &Keyboard, state: &TermState) -> Result<()> {
+    let help_text = keyboard.help("\n");
+    let help_items = help_text.lines();
 
+    let mut i = state.padding;
+    queue!(stdout, terminal::Clear(ClearType::All))?;
+
+    for line in help_items {
+        let splited: Vec<&str> = line.split(": ").collect();
+        let move_by = (20 - splited[0].len()) as u16;
+        queue!(
+            stdout,
+            cursor::MoveTo(state.padding, i),
+            style::Print(splited[0]),
+            cursor::MoveRight(move_by),
+            style::Print(splited[1])
+        )?;
+        i += 1;
+    }
+
+    stdout.flush()?;
+
+    Ok(())
+}
 pub(crate) fn draw_bytes(
     stdout: &mut Stdout,
     state: &TermState,
@@ -169,7 +193,7 @@ fn get_status(state: &TermState, parameters: &Parameters, keyboard: &Keyboard) -
             "Hex Editor ({}x{}) - {}:{}, file: {}",
             state.term_width, state.term_height, state.column, state.row, &parameters.file_path
         ),
-        StatusMode::Keys => keyboard.help(),
+        StatusMode::Keys => keyboard.help(", "),
     }
 }
 

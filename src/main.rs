@@ -12,7 +12,7 @@ use crossterm::{
     terminal::ClearType,
 };
 use crossterm::{terminal, Result};
-use draw::{draw_bytes, draw_fixed_ui, draw_offsets};
+use draw::{draw_bytes, draw_fixed_ui, draw_help, draw_offsets};
 use handlers::{handle_input, handle_mouse, handle_resize};
 use keyboard::Keyboard;
 
@@ -49,6 +49,7 @@ impl Dimensions {
     }
 }
 
+#[derive(PartialEq)]
 pub(crate) enum Action {
     Quit,
     DrawBytes,
@@ -81,6 +82,7 @@ struct TermState<'a> {
     pub render_from_offset: usize,
     pub status_mode: StatusMode,
     pub dimensions: &'a Dimensions,
+    pub last_action: Action,
 }
 
 impl From<Args> for Parameters {
@@ -124,6 +126,7 @@ fn main() -> Result<()> {
         render_from_offset: 0,
         status_mode: StatusMode::General,
         dimensions: &dimensions,
+        last_action: Action::DrawBytes,
     };
 
     let bytes = get_bytes(&parameters.file_path)?;
@@ -149,9 +152,15 @@ fn main() -> Result<()> {
                 )?,
             };
 
-            match action {
+            state.last_action = action;
+
+            match state.last_action {
                 Action::Quit => break,
                 Action::SkipDrawing => continue,
+                Action::DrawHelp => {
+                    draw_help(&mut stdout, &keyboard, &state)?;
+                    continue;
+                }
                 _ => {}
             }
 
