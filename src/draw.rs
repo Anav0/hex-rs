@@ -1,8 +1,8 @@
-use std::{io::Stdout, io::Write};
+use std::{io::Stdout, io::Write, ops::Range};
 
 use crossterm::{
     cursor, queue,
-    style::{self, Color},
+    style::{self, Color, SetBackgroundColor, SetForegroundColor},
     Result,
 };
 
@@ -19,6 +19,7 @@ pub(crate) fn draw_fixed_ui<W: Write>(
     queue!(
         stdout,
         style::SetForegroundColor(Color::Yellow),
+        style::SetBackgroundColor(Color::Reset),
         cursor::MoveTo(state.padding, 0),
         style::Print("Offset(h)"),
         cursor::MoveTo(state.padding, state.term_height),
@@ -55,22 +56,37 @@ pub(crate) fn draw_bytes(
 
     for i in start_from..bytes.len() {
         let byte = bytes[i];
-        queue!(
-            stdout,
-            cursor::MoveTo(byte_x, byte_y),
-            style::Print(format!("{:#04X}", byte))
-        )?;
+
+        if byte_y == state.row && byte_x == state.column {
+            queue!(
+                stdout,
+                cursor::MoveTo(byte_x, byte_y),
+                SetForegroundColor(Color::DarkBlue),
+            )?;
+        } else {
+            queue!(
+                stdout,
+                cursor::MoveTo(byte_x, byte_y),
+                SetBackgroundColor(Color::Reset),
+                SetForegroundColor(Color::DarkGrey),
+            )?;
+        }
+
+        queue!(stdout, style::Print(format!("{:#04X}", byte)))?;
 
         byte_x += 5;
         iter += 1;
 
-        //Overflow on x axis
+        //Overflow on x axis, time to print decoded chars
         if iter >= parameters.byte_size || i == bytes.len() - 1 {
-            queue!(stdout, cursor::MoveTo(state.dimensions.decoded.0, byte_y))?;
-            for j in i + 1 - iter as usize..=i {
-                let decoded = get_symbol(bytes[j]);
-                queue!(stdout, cursor::MoveRight(0), style::Print(decoded))?;
-            }
+            let start = i + 1 - iter as usize;
+            let end = i;
+            let range = Range { start, end };
+
+            let starting_pos = (state.dimensions.decoded.0, byte_y);
+
+            draw_chars(stdout, state, starting_pos, range, bytes, byte_y)?;
+
             iter = 0;
             byte_x = state.padding + 13;
             byte_y += 1;
@@ -81,6 +97,46 @@ pub(crate) fn draw_bytes(
             break;
         }
     }
+    Ok(())
+}
+
+fn draw_chars<W: Write>(
+    stdout: &mut W,
+    state: &TermState,
+    starting_pos: (u16, u16),
+    range: Range<usize>,
+    bytes: &Vec<u8>,
+    byte_y: u16,
+) -> Result<()> {
+    queue!(
+        stdout,
+        cursor::MoveTo(starting_pos.0, starting_pos.1),
+        SetForegroundColor(Color::DarkGrey)
+    )?;
+    let mut char_pos = 0;
+    for i in range {
+        let required_y = state.dimensions.bytes.0 + 5 * char_pos;
+        let decoded = get_symbol(bytes[i]);
+
+        let mut fg = Color::DarkGrey;
+        let mut bg = Color::Reset;
+
+        if byte_y == state.row && required_y == state.column {
+            if decoded == ' ' {
+                bg = Color::DarkBlue;
+            }
+            fg = Color::DarkBlue;
+        }
+        queue!(
+            stdout,
+            cursor::MoveRight(0),
+            SetForegroundColor(fg),
+            SetBackgroundColor(bg),
+            style::Print(decoded)
+        )?;
+        char_pos += 1;
+    }
+
     Ok(())
 }
 
@@ -98,6 +154,7 @@ pub(crate) fn draw_offsets(
         queue!(
             stdout,
             style::SetForegroundColor(Color::Yellow),
+            style::SetBackgroundColor(Color::Reset),
             cursor::MoveTo(state.padding, iter + 1 as u16),
             style::Print(format!("{:#010x}", i * parameters.byte_size))
         )?;
