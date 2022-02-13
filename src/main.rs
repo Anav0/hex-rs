@@ -68,9 +68,13 @@ fn main() -> Result<()> {
                 break;
             }
 
-            match new_mode {
-                modes::Modes::Bytes => index = 0,
-                modes::Modes::Help => index = 1,
+            let new_index = match new_mode {
+                Modes::Bytes => 0,
+                Modes::Help => 1,
+            };
+
+            if new_index != index {
+                index = new_index;
             }
 
             modes[index].draw(&mut stdout)?;

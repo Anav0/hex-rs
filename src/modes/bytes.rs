@@ -11,7 +11,10 @@ use crate::StatusMode;
 use crate::{keyboard::Keyboard, Parameters, TermState};
 
 use super::{Mode, Modes};
-
+enum BytesScreens {
+    Bytes,
+    TooSmall,
+}
 pub struct BytesMode<'a> {
     keyboard: &'a Keyboard<'a>,
     state: &'a mut TermState<'a>,
@@ -20,8 +23,21 @@ pub struct BytesMode<'a> {
     offsets: u16,
     quit: bool,
     minimal_width: u16,
+    to_draw: BytesScreens,
 }
 impl<'a> BytesMode<'a> {
+    fn draw_too_small(&self, stdout: &mut Stdout) -> Result<()> {
+        queue!(
+            stdout,
+            terminal::Clear(ClearType::All),
+            cursor::MoveTo(1, 1),
+            style::Print(format!(
+                "Windows too small to display {} bytes in one row",
+                self.parameters.byte_size
+            ))
+        )?;
+        Ok(())
+    }
     pub fn new(
         keyboard: &'a Keyboard,
         state: &'a mut TermState<'a>,
@@ -40,6 +56,7 @@ impl<'a> BytesMode<'a> {
             offsets,
             minimal_width,
             quit: false,
+            to_draw: BytesScreens::Bytes,
         };
 
         Ok(mode)
@@ -80,16 +97,7 @@ impl<'a> Mode for BytesMode<'a> {
 
     fn handle_resize(&mut self, stdout: &mut Stdout, width: u16, height: u16) -> Result<Modes> {
         if width < self.minimal_width {
-            queue!(
-                stdout,
-                terminal::Clear(ClearType::All),
-                cursor::MoveTo(1, 1),
-                style::Print(format!(
-                    "Windows too small to display {} bytes in one row",
-                    self.parameters.byte_size
-                ))
-            )?;
-            stdout.flush()?;
+            self.to_draw = BytesScreens::TooSmall;
 
             //Check if cursor is not left behind
             if self.state.column > self.state.term_width {
@@ -102,6 +110,7 @@ impl<'a> Mode for BytesMode<'a> {
             return Ok(Modes::Bytes);
         }
 
+        self.to_draw = BytesScreens::Bytes;
         self.state.term_width = width;
         self.state.term_height = height;
 
@@ -109,13 +118,20 @@ impl<'a> Mode for BytesMode<'a> {
     }
 
     fn draw(&self, stdout: &mut Stdout) -> Result<()> {
-        queue!(stdout, terminal::Clear(ClearType::All))?;
+        match self.to_draw {
+            BytesScreens::Bytes => {
+                queue!(stdout, terminal::Clear(ClearType::All))?;
 
-        draw_fixed_ui(stdout, &self.state, &self.parameters, &self.keyboard)?;
-        draw_offsets(stdout, &self.state, &self.parameters, self.offsets)?;
-        draw_bytes(stdout, &self.state, &self.parameters, &self.bytes)?;
+                draw_fixed_ui(stdout, &self.state, &self.parameters, &self.keyboard)?;
+                draw_offsets(stdout, &self.state, &self.parameters, self.offsets)?;
+                draw_bytes(stdout, &self.state, &self.parameters, &self.bytes)?;
 
-        queue!(stdout, cursor::MoveTo(self.state.column, self.state.row))?;
+                queue!(stdout, cursor::MoveTo(self.state.column, self.state.row))?;
+            }
+            BytesScreens::TooSmall => {
+                self.draw_too_small(stdout)?;
+            }
+        }
 
         Ok(())
     }
