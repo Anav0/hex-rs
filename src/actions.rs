@@ -1,4 +1,4 @@
-use crate::{modes::Modes, Action, Direction, StatusMode, TermState};
+use crate::{misc::Action, misc::Direction, modes::Modes, StatusMode, TermState};
 
 pub fn general_status(state: &mut TermState) -> Action {
     state.status_mode = StatusMode::General;

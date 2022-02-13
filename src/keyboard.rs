@@ -14,7 +14,8 @@ use crate::{
         delete, edit, general_status, go_down, go_left, go_right, go_up, help, keys_status, quit,
         save, scroll_down, scroll_up,
     },
-    Action, TermState,
+    misc::Action,
+    TermState,
 };
 
 pub type KeyAction = dyn Fn(&mut TermState) -> Action;

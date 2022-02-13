@@ -54,8 +54,8 @@ impl<'a> Mode for BytesMode<'a> {
         let action = action(self.state);
 
         match action {
-            crate::Action::Quit => self.quit = true,
-            crate::Action::DrawHelp => return Ok(Modes::Help),
+            crate::misc::Action::Quit => self.quit = true,
+            crate::misc::Action::DrawHelp => return Ok(Modes::Help),
             _ => {}
         }
 
