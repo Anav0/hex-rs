@@ -17,9 +17,9 @@ use crate::{
     Action, TermState,
 };
 
-pub(crate) type KeyAction = dyn Fn(&mut TermState) -> Action;
+pub type KeyAction = dyn Fn(&mut TermState) -> Action;
 
-pub(crate) struct Keyboard<'a> {
+pub struct Keyboard<'a> {
     keys_and_actions: HashMap<KeyCode, &'a KeyAction>,
     help: Vec<String>,
 }

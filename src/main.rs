@@ -1,27 +1,24 @@
 use std::{
     env::{self, Args},
-    fs::File,
-    io::{stdout, Read, Write},
+    io::{stdout, Write},
     time::Duration,
 };
 
 use crossterm::{
     cursor,
     event::{poll, read, Event},
-    execute, queue,
+    execute,
     terminal::ClearType,
 };
 use crossterm::{terminal, Result};
-use draw::{draw_bytes, draw_fixed_ui, draw_help, draw_offsets};
-use handlers::{handle_input, handle_mouse, handle_resize};
 use keyboard::Keyboard;
+use modes::{BytesMode, HelpMode, Mode, Modes};
 
 mod actions;
-mod draw;
-mod handlers;
 mod keyboard;
+mod modes;
 
-pub(crate) struct Dimensions {
+pub struct Dimensions {
     pub offsets: (u16, u16),
     pub bytes: (u16, u16),
     pub decoded: (u16, u16),
@@ -50,7 +47,7 @@ impl Dimensions {
 }
 
 #[derive(PartialEq)]
-pub(crate) enum Action {
+pub enum Action {
     Quit,
     DrawBytes,
     DrawHelp,
@@ -58,22 +55,22 @@ pub(crate) enum Action {
 }
 
 #[derive(PartialEq)]
-enum Direction {
+pub enum Direction {
     Left,
     Right,
 }
 
-enum StatusMode {
+pub enum StatusMode {
     General,
     Keys,
 }
 
-struct Parameters {
+pub struct Parameters {
     file_path: String,
     byte_size: u16,
 }
 
-struct TermState<'a> {
+pub struct TermState<'a> {
     pub row: u16,
     pub column: u16,
     pub term_width: u16,
@@ -82,7 +79,7 @@ struct TermState<'a> {
     pub render_from_offset: usize,
     pub status_mode: StatusMode,
     pub dimensions: &'a Dimensions,
-    pub last_action: Action,
+    pub prev_mode: Modes,
 }
 
 impl From<Args> for Parameters {
@@ -116,6 +113,7 @@ fn main() -> Result<()> {
     let size = terminal::size()?;
     let padding = 2;
     let dimensions = Dimensions::new(padding, &parameters);
+    let keyboard = Keyboard::new();
 
     let mut state = TermState {
         row: 1,
@@ -126,51 +124,36 @@ fn main() -> Result<()> {
         render_from_offset: 0,
         status_mode: StatusMode::General,
         dimensions: &dimensions,
-        last_action: Action::DrawBytes,
+        prev_mode: Modes::Bytes,
     };
 
-    let bytes = get_bytes(&parameters.file_path)?;
-    let file_size = bytes.len();
+    // Modes
+    let mut help_mode = HelpMode::new(state.padding, &keyboard);
+    let mut bytes_mode = BytesMode::new(&keyboard, &mut state, &parameters)?;
+    let modes: [&mut dyn Mode; 2] = [&mut bytes_mode, &mut help_mode];
 
-    let minimal_width = ((parameters.byte_size + 1) * 5) + 16;
-    let offsets = file_size as u16 / parameters.byte_size;
-
-    let keyboard = Keyboard::new();
+    let mut index = 0;
 
     loop {
         if poll(Duration::from_millis(16))? {
-            let action = match read()? {
-                Event::Key(event) => handle_input(&mut state, event, &keyboard),
-                Event::Mouse(event) => handle_mouse(&mut state, event),
-                Event::Resize(width, height) => handle_resize(
-                    &mut stdout,
-                    &mut state,
-                    width,
-                    height,
-                    minimal_width,
-                    &parameters,
-                )?,
+            let new_mode = match read()? {
+                Event::Key(event) => modes[index].handle_input(&event)?,
+                Event::Mouse(event) => modes[index].handle_mouse(&event)?,
+                Event::Resize(width, height) => {
+                    modes[index].handle_resize(&mut stdout, width, height)?
+                }
             };
 
-            state.last_action = action;
-
-            match state.last_action {
-                Action::Quit => break,
-                Action::SkipDrawing => continue,
-                Action::DrawHelp => {
-                    draw_help(&mut stdout, &keyboard, &state)?;
-                    continue;
-                }
-                _ => {}
+            if modes[index].should_quit() {
+                break;
             }
 
-            queue!(&mut stdout, terminal::Clear(ClearType::All))?;
+            match new_mode {
+                modes::Modes::Bytes => index = 0,
+                modes::Modes::Help => index = 1,
+            }
 
-            draw_fixed_ui(&mut stdout, &state, &parameters, &keyboard)?;
-            draw_offsets(&mut stdout, &state, &parameters, offsets)?;
-            draw_bytes(&mut stdout, &state, &parameters, &bytes)?;
-
-            queue!(&mut stdout, cursor::MoveTo(state.column, state.row))?;
+            modes[index].draw(&mut stdout)?;
 
             stdout.flush()?;
         }
@@ -185,14 +168,4 @@ fn main() -> Result<()> {
     )?;
     terminal::disable_raw_mode()?;
     Ok(())
-}
-
-fn get_bytes(path: &str) -> Result<Vec<u8>> {
-    let mut file = File::open(path).expect("Failed to open file");
-    let file_size = file.metadata()?.len();
-    let mut bytes: Vec<u8> = vec![0; file_size as usize];
-    file.read(&mut bytes)
-        .expect("Failed to read bytes into buffer");
-
-    Ok(bytes)
 }

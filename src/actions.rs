@@ -1,40 +1,40 @@
-use crate::{Action, Direction, StatusMode, TermState};
+use crate::{modes::Modes, Action, Direction, StatusMode, TermState};
 
-pub(crate) fn general_status(state: &mut TermState) -> Action {
+pub fn general_status(state: &mut TermState) -> Action {
     state.status_mode = StatusMode::General;
     Action::DrawBytes
 }
 
-pub(crate) fn keys_status(state: &mut TermState) -> Action {
+pub fn keys_status(state: &mut TermState) -> Action {
     state.status_mode = StatusMode::Keys;
     Action::DrawBytes
 }
 
-pub(crate) fn help(state: &mut TermState) -> Action {
-    if state.last_action != Action::DrawHelp {
+pub fn help(state: &mut TermState) -> Action {
+    if state.prev_mode != Modes::Help {
         return Action::DrawHelp;
     }
 
     Action::DrawBytes
 }
 
-pub(crate) fn remove(state: &mut TermState) -> Action {
+pub fn remove(state: &mut TermState) -> Action {
     Action::DrawBytes
 }
 
-pub(crate) fn save(state: &mut TermState) -> Action {
+pub fn save(state: &mut TermState) -> Action {
     Action::DrawBytes
 }
 
-pub(crate) fn edit(state: &mut TermState) -> Action {
+pub fn edit(state: &mut TermState) -> Action {
     Action::DrawBytes
 }
 
-pub(crate) fn delete(state: &mut TermState) -> Action {
+pub fn delete(state: &mut TermState) -> Action {
     Action::DrawBytes
 }
 
-pub(crate) fn go_left(state: &mut TermState) -> Action {
+pub fn go_left(state: &mut TermState) -> Action {
     let jump_by = calculate_leap(&state, Direction::Left);
     if jump_by <= state.column {
         state.column -= jump_by;
@@ -42,7 +42,7 @@ pub(crate) fn go_left(state: &mut TermState) -> Action {
     Action::DrawBytes
 }
 
-pub(crate) fn go_right(state: &mut TermState) -> Action {
+pub fn go_right(state: &mut TermState) -> Action {
     let jump_by = calculate_leap(&state, Direction::Right);
     if state.column + jump_by <= state.term_width {
         state.column += jump_by;
@@ -50,33 +50,33 @@ pub(crate) fn go_right(state: &mut TermState) -> Action {
     Action::DrawBytes
 }
 
-pub(crate) fn go_up(state: &mut TermState) -> Action {
+pub fn go_up(state: &mut TermState) -> Action {
     if state.row >= 2 {
         state.row -= 1;
     }
     Action::DrawBytes
 }
 
-pub(crate) fn go_down(state: &mut TermState) -> Action {
+pub fn go_down(state: &mut TermState) -> Action {
     if state.row != state.term_height {
         state.row += 1;
     }
     Action::DrawBytes
 }
 
-pub(crate) fn scroll_up(state: &mut TermState) -> Action {
+pub fn scroll_up(state: &mut TermState) -> Action {
     if state.render_from_offset != 0 {
         state.render_from_offset -= 1
     }
     Action::DrawBytes
 }
 
-pub(crate) fn scroll_down(state: &mut TermState) -> Action {
+pub fn scroll_down(state: &mut TermState) -> Action {
     state.render_from_offset += 1;
     Action::DrawBytes
 }
 
-pub(crate) fn quit(state: &mut TermState) -> Action {
+pub fn quit(state: &mut TermState) -> Action {
     Action::Quit
 }
 
