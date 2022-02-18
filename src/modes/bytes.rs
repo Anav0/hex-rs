@@ -160,19 +160,18 @@ fn draw_bytes(
     for i in start_from..bytes.len() {
         let byte = bytes[i];
 
+        queue!(
+            stdout,
+            SetBackgroundColor(Color::Reset),
+            cursor::MoveTo(byte_x, byte_y),
+        )?;
+
         if byte_y == state.row && byte_x == state.column {
-            queue!(
-                stdout,
-                cursor::MoveTo(byte_x, byte_y),
-                SetForegroundColor(Color::DarkBlue),
-            )?;
+            queue!(stdout, SetForegroundColor(Color::DarkBlue))?;
+        } else if state.bytes_changed.contains(&(byte_x, byte_y)) {
+            queue!(stdout, SetForegroundColor(Color::Red))?;
         } else {
-            queue!(
-                stdout,
-                cursor::MoveTo(byte_x, byte_y),
-                SetBackgroundColor(Color::Reset),
-                SetForegroundColor(Color::DarkGrey),
-            )?;
+            queue!(stdout, SetForegroundColor(Color::DarkGrey))?;
         }
 
         queue!(stdout, style::Print(format!("{:#04X}", byte)))?;
@@ -268,10 +267,19 @@ fn draw_offsets(
 
 fn get_status(state: &TermState, parameters: &Parameters, keyboard: &Keyboard) -> String {
     match state.status_mode {
-        StatusMode::General => format!(
-            "Hex Editor ({}x{}) - {}:{}, file: {}",
-            state.term_width, state.term_height, state.column, state.row, &parameters.file_path
-        ),
+        StatusMode::General => {
+            let mut status = format!(
+                "Hex Editor ({}x{}) - {}:{}, file: {}",
+                state.term_width, state.term_height, state.column, state.row, &parameters.file_path
+            );
+
+            if state.bytes_changed.len() > 0 {
+                let bytes_info = format!(", Bytes changes: {}", state.bytes_changed.len());
+                status.push_str(&bytes_info);
+            }
+
+            status
+        }
         StatusMode::Keys => keyboard.help(", "),
     }
 }

@@ -1,5 +1,5 @@
 use std::{
-    collections::HashMap,
+    collections::{HashMap, HashSet},
     env::{self},
     io::{stdout, Write},
     time::Duration,
@@ -49,6 +49,7 @@ fn main() -> Result<()> {
         status_mode: StatusMode::General,
         dimensions: &dimensions,
         prev_mode: Modes::Bytes,
+        bytes_changed: HashSet::new(),
         bytes,
     };
 

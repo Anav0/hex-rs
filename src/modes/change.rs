@@ -51,13 +51,17 @@ impl<'a> Mode for ChangeMode<'a> {
 
                 let bytes_section_column = state.dimensions.bytes.0;
 
+                // @Improvement: Move "5" (hex value width + space) to separate variable
                 let actual_row = state.row - 1;
-                // @Improvement: Move "5" (hex value width + space) to seperate variable
                 let actual_column = (state.column - bytes_section_column) / 5;
 
                 let byte_index = (actual_row * self.parameters.byte_size + actual_column) as usize;
 
                 state.bytes[byte_index] = byte;
+
+                if !state.bytes_changed.contains(&(state.column, state.row)) {
+                    state.bytes_changed.insert((state.column, state.row));
+                }
 
                 Modes::Bytes
             }

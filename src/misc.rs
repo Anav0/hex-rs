@@ -1,4 +1,9 @@
-use std::{collections::HashMap, env::Args, fs::File, io::Read};
+use std::{
+    collections::{HashMap, HashSet},
+    env::Args,
+    fs::File,
+    io::Read,
+};
 
 use crate::modes::Modes;
 use crossterm::Result;
@@ -67,6 +72,7 @@ pub struct TermState<'a> {
     pub prev_mode: Modes,
     //TODO: find a better place for it
     pub bytes: Vec<u8>,
+    pub bytes_changed: HashSet<(u16, u16)>,
 }
 
 impl From<Args> for Parameters {
