@@ -17,9 +17,7 @@ enum BytesScreens {
 }
 pub struct BytesMode<'a> {
     keyboard: &'a Keyboard<'a>,
-    state: &'a mut TermState<'a>,
     parameters: &'a Parameters,
-    bytes: Vec<u8>,
     offsets: u16,
     quit: bool,
     minimal_width: u16,
@@ -40,19 +38,15 @@ impl<'a> BytesMode<'a> {
     }
     pub fn new(
         keyboard: &'a Keyboard,
-        state: &'a mut TermState<'a>,
         parameters: &'a Parameters,
+        file_size: usize,
     ) -> Result<BytesMode<'a>> {
-        let bytes = get_bytes(&parameters.file_path)?;
-        let file_size = bytes.len();
         let offsets = file_size as u16 / parameters.byte_size;
         let minimal_width = ((parameters.byte_size + 1) * 5) + 16;
 
         let mode = BytesMode {
             keyboard,
-            state,
             parameters,
-            bytes,
             offsets,
             minimal_width,
             quit: false,
@@ -63,30 +57,32 @@ impl<'a> BytesMode<'a> {
     }
 }
 impl<'a> Mode for BytesMode<'a> {
-    fn handle_input(&mut self, event: &KeyEvent) -> Result<Modes> {
+    fn handle_input(&mut self, event: &KeyEvent, state: &mut TermState) -> Result<Modes> {
         let action = self
             .keyboard
             .get(&event.code)
             .expect(&format!("Failed to handle key: '{:?}'", event.code));
-        let action = action(self.state);
+        let action = action(state);
 
+        //TODO: get rid of Action
         match action {
             crate::misc::Action::Quit => self.quit = true,
             crate::misc::Action::DrawHelp => return Ok(Modes::Help),
+            crate::misc::Action::Change => return Ok(Modes::Change),
             _ => {}
         }
 
         Ok(Modes::Bytes)
     }
 
-    fn handle_mouse(&mut self, event: &MouseEvent) -> Result<Modes> {
+    fn handle_mouse(&mut self, event: &MouseEvent, state: &mut TermState) -> Result<Modes> {
         match event.kind {
-            event::MouseEventKind::ScrollDown => self.state.render_from_offset += 1,
-            event::MouseEventKind::ScrollUp => self.state.render_from_offset -= 1,
+            event::MouseEventKind::ScrollDown => state.render_from_offset += 1,
+            event::MouseEventKind::ScrollUp => state.render_from_offset -= 1,
             event::MouseEventKind::Up(btn) => match btn {
                 event::MouseButton::Left => {
-                    self.state.column = event.column;
-                    self.state.row = event.row;
+                    state.column = event.column;
+                    state.row = event.row;
                 }
                 _ => {}
             },
@@ -95,38 +91,44 @@ impl<'a> Mode for BytesMode<'a> {
         Ok(Modes::Bytes)
     }
 
-    fn handle_resize(&mut self, stdout: &mut Stdout, width: u16, height: u16) -> Result<Modes> {
+    fn handle_resize(
+        &mut self,
+        stdout: &mut Stdout,
+        width: u16,
+        height: u16,
+        state: &mut TermState,
+    ) -> Result<Modes> {
         if width < self.minimal_width {
             self.to_draw = BytesScreens::TooSmall;
 
             //Check if cursor is not left behind
-            if self.state.column > self.state.term_width {
-                self.state.column = self.state.term_width
+            if state.column > state.term_width {
+                state.column = state.term_width
             }
-            if self.state.row > self.state.term_height {
-                self.state.row = self.state.term_height
+            if state.row > state.term_height {
+                state.row = state.term_height
             }
 
             return Ok(Modes::Bytes);
         }
 
         self.to_draw = BytesScreens::Bytes;
-        self.state.term_width = width;
-        self.state.term_height = height;
+        state.term_width = width;
+        state.term_height = height;
 
         Ok(Modes::Bytes)
     }
 
-    fn draw(&self, stdout: &mut Stdout) -> Result<()> {
+    fn draw(&self, stdout: &mut Stdout, state: &TermState) -> Result<()> {
         match self.to_draw {
             BytesScreens::Bytes => {
                 queue!(stdout, terminal::Clear(ClearType::All))?;
 
-                draw_fixed_ui(stdout, &self.state, &self.parameters, &self.keyboard)?;
-                draw_offsets(stdout, &self.state, &self.parameters, self.offsets)?;
-                draw_bytes(stdout, &self.state, &self.parameters, &self.bytes)?;
+                draw_fixed_ui(stdout, &state, &self.parameters, &self.keyboard)?;
+                draw_offsets(stdout, &state, &self.parameters, self.offsets)?;
+                draw_bytes(stdout, &state, &self.parameters, &state.bytes)?;
 
-                queue!(stdout, cursor::MoveTo(self.state.column, self.state.row))?;
+                queue!(stdout, cursor::MoveTo(state.column, state.row))?;
             }
             BytesScreens::TooSmall => {
                 self.draw_too_small(stdout)?;
@@ -139,15 +141,6 @@ impl<'a> Mode for BytesMode<'a> {
     fn should_quit(&self) -> bool {
         self.quit
     }
-}
-fn get_bytes(path: &str) -> Result<Vec<u8>> {
-    let mut file = File::open(path).expect("Failed to open file");
-    let file_size = file.metadata()?.len();
-    let mut bytes: Vec<u8> = vec![0; file_size as usize];
-    file.read(&mut bytes)
-        .expect("Failed to read bytes into buffer");
-
-    Ok(bytes)
 }
 
 fn draw_bytes(

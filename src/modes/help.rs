@@ -10,6 +10,7 @@ use crossterm::terminal::ClearType;
 use crossterm::Result;
 
 use crate::keyboard::Keyboard;
+use crate::misc::TermState;
 
 use super::{Mode, Modes};
 
@@ -24,15 +25,21 @@ impl<'a> HelpMode<'a> {
 }
 
 impl<'a> Mode for HelpMode<'a> {
-    fn handle_input(&mut self, event: &KeyEvent) -> Result<Modes> {
+    fn handle_input(&mut self, event: &KeyEvent, state: &mut TermState) -> Result<Modes> {
         Ok(Modes::Bytes)
     }
 
-    fn handle_mouse(&mut self, event: &MouseEvent) -> Result<Modes> {
+    fn handle_mouse(&mut self, event: &MouseEvent, state: &mut TermState) -> Result<Modes> {
         Ok(Modes::Help)
     }
 
-    fn handle_resize(&mut self, stdout: &mut Stdout, width: u16, height: u16) -> Result<Modes> {
+    fn handle_resize(
+        &mut self,
+        stdout: &mut Stdout,
+        width: u16,
+        height: u16,
+        state: &mut TermState,
+    ) -> Result<Modes> {
         Ok(Modes::Help)
     }
 
@@ -40,7 +47,7 @@ impl<'a> Mode for HelpMode<'a> {
         false
     }
 
-    fn draw(&self, stdout: &mut Stdout) -> Result<()> {
+    fn draw(&self, stdout: &mut Stdout, state: &TermState) -> Result<()> {
         let help_text = self.keyboard.help("\n");
         let help_items = help_text.lines();
 

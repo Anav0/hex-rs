@@ -1,5 +1,6 @@
 use std::{
-    env::{self, Args},
+    collections::HashMap,
+    env::{self},
     io::{stdout, Write},
     time::Duration,
 };
@@ -12,8 +13,8 @@ use crossterm::{
 };
 use crossterm::{terminal, Result};
 use keyboard::Keyboard;
-use misc::{Dimensions, Parameters, StatusMode, TermState};
-use modes::{BytesMode, HelpMode, Mode, Modes};
+use misc::{get_bytes, Dimensions, Parameters, StatusMode, TermState};
+use modes::{BytesMode, ChangeMode, HelpMode, Mode, Modes};
 
 mod actions;
 mod keyboard;
@@ -35,6 +36,9 @@ fn main() -> Result<()> {
     let dimensions = Dimensions::new(padding, &parameters);
     let keyboard = Keyboard::new();
 
+    let bytes = get_bytes(&parameters.file_path)?;
+    let file_size = bytes.len();
+
     let mut state = TermState {
         row: 1,
         column: dimensions.bytes.0,
@@ -45,22 +49,24 @@ fn main() -> Result<()> {
         status_mode: StatusMode::General,
         dimensions: &dimensions,
         prev_mode: Modes::Bytes,
+        bytes,
     };
 
     // Modes
-    let mut help_mode = HelpMode::new(state.padding, &keyboard);
-    let mut bytes_mode = BytesMode::new(&keyboard, &mut state, &parameters)?;
-    let modes: [&mut dyn Mode; 2] = [&mut bytes_mode, &mut help_mode];
+    let mut bytes_mode = BytesMode::new(&keyboard, &parameters, file_size)?;
+    let mut help_mode = HelpMode::new(padding, &keyboard);
+    let mut change_mode = ChangeMode::new(&parameters);
+    let modes: [&mut dyn Mode; 3] = [&mut bytes_mode, &mut help_mode, &mut change_mode];
 
     let mut index = 0;
 
     loop {
         if poll(Duration::from_millis(16))? {
             let new_mode = match read()? {
-                Event::Key(event) => modes[index].handle_input(&event)?,
-                Event::Mouse(event) => modes[index].handle_mouse(&event)?,
+                Event::Key(event) => modes[index].handle_input(&event, &mut state)?,
+                Event::Mouse(event) => modes[index].handle_mouse(&event, &mut state)?,
                 Event::Resize(width, height) => {
-                    modes[index].handle_resize(&mut stdout, width, height)?
+                    modes[index].handle_resize(&mut stdout, width, height, &mut state)?
                 }
             };
 
@@ -71,13 +77,14 @@ fn main() -> Result<()> {
             let new_index = match new_mode {
                 Modes::Bytes => 0,
                 Modes::Help => 1,
+                Modes::Change => 2,
             };
 
             if new_index != index {
                 index = new_index;
             }
 
-            modes[index].draw(&mut stdout)?;
+            modes[index].draw(&mut stdout, &state)?;
 
             stdout.flush()?;
         }

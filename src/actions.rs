@@ -27,7 +27,7 @@ pub fn save(state: &mut TermState) -> Action {
 }
 
 pub fn edit(state: &mut TermState) -> Action {
-    Action::DrawBytes
+    Action::Change
 }
 
 pub fn delete(state: &mut TermState) -> Action {

@@ -3,21 +3,32 @@ use crossterm::Result;
 use std::io::Stdout;
 
 mod bytes;
+mod change;
 mod help;
 
 pub use bytes::BytesMode;
+pub use change::ChangeMode;
 pub use help::HelpMode;
+
+use crate::misc::TermState;
 
 #[derive(PartialEq)]
 pub enum Modes {
     Bytes,
     Help,
+    Change,
 }
 
 pub trait Mode {
-    fn handle_input(&mut self, event: &KeyEvent) -> Result<Modes>;
-    fn handle_mouse(&mut self, event: &MouseEvent) -> Result<Modes>;
-    fn handle_resize(&mut self, stdout: &mut Stdout, width: u16, height: u16) -> Result<Modes>;
+    fn handle_input(&mut self, event: &KeyEvent, state: &mut TermState) -> Result<Modes>;
+    fn handle_mouse(&mut self, event: &MouseEvent, state: &mut TermState) -> Result<Modes>;
+    fn handle_resize(
+        &mut self,
+        stdout: &mut Stdout,
+        width: u16,
+        height: u16,
+        state: &mut TermState,
+    ) -> Result<Modes>;
     fn should_quit(&self) -> bool;
-    fn draw(&self, stdout: &mut Stdout) -> Result<()>;
+    fn draw(&self, stdout: &mut Stdout, state: &TermState) -> Result<()>;
 }

@@ -1,6 +1,7 @@
-use std::env::Args;
+use std::{collections::HashMap, env::Args, fs::File, io::Read};
 
 use crate::modes::Modes;
+use crossterm::Result;
 
 pub struct Dimensions {
     pub offsets: (u16, u16),
@@ -35,7 +36,7 @@ pub enum Action {
     Quit,
     DrawBytes,
     DrawHelp,
-    SkipDrawing,
+    Change,
 }
 
 #[derive(PartialEq)]
@@ -64,6 +65,8 @@ pub struct TermState<'a> {
     pub status_mode: StatusMode,
     pub dimensions: &'a Dimensions,
     pub prev_mode: Modes,
+    //TODO: find a better place for it
+    pub bytes: Vec<u8>,
 }
 
 impl From<Args> for Parameters {
@@ -75,6 +78,10 @@ impl From<Args> for Parameters {
             byte_size = collected_args[2]
                 .parse()
                 .expect("Second argument must be u16");
+
+            if byte_size <= 0 {
+                panic!("Byte size should be greater than 0!")
+            }
         }
 
         Self {
@@ -82,4 +89,14 @@ impl From<Args> for Parameters {
             byte_size,
         }
     }
+}
+
+pub fn get_bytes(path: &str) -> Result<Vec<u8>> {
+    let mut file = File::open(path).expect("Failed to open file");
+    let file_size = file.metadata()?.len();
+    let mut bytes: Vec<u8> = vec![0; file_size as usize];
+    file.read(&mut bytes)
+        .expect("Failed to read bytes into buffer");
+
+    Ok(bytes)
 }
