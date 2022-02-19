@@ -1,3 +1,8 @@
+use std::{
+    fs::{self, OpenOptions},
+    io::Write,
+};
+
 use crate::{misc::Action, misc::Direction, modes::Modes, StatusMode, TermState};
 
 pub fn general_status(state: &mut TermState) -> Action {
@@ -23,6 +28,17 @@ pub fn remove(state: &mut TermState) -> Action {
 }
 
 pub fn save(state: &mut TermState) -> Action {
+    // @FIX
+    let mut file = OpenOptions::new()
+        .write(true)
+        .truncate(true)
+        .open(state.file_path)
+        .expect("Failed to save changes");
+
+    file.write(&state.bytes).expect("Failed to save changes");
+
+    state.bytes_changed.clear();
+
     Action::DrawBytes
 }
 

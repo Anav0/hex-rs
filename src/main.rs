@@ -1,7 +1,8 @@
 use std::{
     collections::{HashMap, HashSet},
     env::{self},
-    io::{stdout, Write},
+    fs::{File, OpenOptions},
+    io::{stdout, Read, Write},
     time::Duration,
 };
 
@@ -13,7 +14,7 @@ use crossterm::{
 };
 use crossterm::{terminal, Result};
 use keyboard::Keyboard;
-use misc::{get_bytes, Dimensions, Parameters, StatusMode, TermState};
+use misc::{Dimensions, Parameters, StatusMode, TermState};
 use modes::{BytesMode, ChangeMode, HelpMode, Mode, Modes};
 
 mod actions;
@@ -36,8 +37,17 @@ fn main() -> Result<()> {
     let dimensions = Dimensions::new(padding, &parameters);
     let keyboard = Keyboard::new();
 
-    let bytes = get_bytes(&parameters.file_path)?;
-    let file_size = bytes.len();
+    let mut file = OpenOptions::new()
+        .read(true)
+        .write(true)
+        .append(false)
+        .open(parameters.file_path.clone())
+        .expect("Failed to open file");
+
+    let file_size = file.metadata()?.len();
+    let mut bytes: Vec<u8> = vec![0; file_size as usize];
+    file.read(&mut bytes)
+        .expect("Failed to read bytes into buffer");
 
     let mut state = TermState {
         row: 1,
@@ -51,10 +61,11 @@ fn main() -> Result<()> {
         prev_mode: Modes::Bytes,
         bytes_changed: HashSet::new(),
         bytes,
+        file_path: &parameters.file_path,
     };
 
     // Modes
-    let mut bytes_mode = BytesMode::new(&keyboard, &parameters, file_size)?;
+    let mut bytes_mode = BytesMode::new(&keyboard, &parameters, file_size as usize)?;
     let mut help_mode = HelpMode::new(padding, &keyboard);
     let mut change_mode = ChangeMode::new(&parameters);
     let modes: [&mut dyn Mode; 3] = [&mut bytes_mode, &mut help_mode, &mut change_mode];

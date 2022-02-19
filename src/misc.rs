@@ -73,6 +73,7 @@ pub struct TermState<'a> {
     //TODO: find a better place for it
     pub bytes: Vec<u8>,
     pub bytes_changed: HashSet<usize>,
+    pub file_path: &'a str,
 }
 
 impl From<Args> for Parameters {
@@ -95,14 +96,4 @@ impl From<Args> for Parameters {
             byte_size,
         }
     }
-}
-
-pub fn get_bytes(path: &str) -> Result<Vec<u8>> {
-    let mut file = File::open(path).expect("Failed to open file");
-    let file_size = file.metadata()?.len();
-    let mut bytes: Vec<u8> = vec![0; file_size as usize];
-    file.read(&mut bytes)
-        .expect("Failed to read bytes into buffer");
-
-    Ok(bytes)
 }
