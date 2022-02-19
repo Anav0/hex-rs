@@ -182,7 +182,7 @@ fn draw_bytes(
         //Overflow on x axis, time to print decoded chars
         if iter >= parameters.byte_size || i == bytes.len() - 1 {
             let start = i + 1 - iter as usize;
-            let end = i;
+            let end = i + 1;
             let range = Range { start, end };
 
             let starting_pos = (state.dimensions.decoded.0, byte_y);
