@@ -46,6 +46,10 @@ impl<'a> Mode for ChangeMode<'a> {
                 Modes::Change
             }
             KeyCode::Enter => {
+                if self.input.len() != 2 {
+                    return Ok(Modes::Change);
+                }
+
                 let byte =
                     u8::from_str_radix(&self.input, 16).expect("Failed to convert input to byte");
 
@@ -62,6 +66,8 @@ impl<'a> Mode for ChangeMode<'a> {
                 if !state.bytes_changed.contains(&(state.column, state.row)) {
                     state.bytes_changed.insert((state.column, state.row));
                 }
+
+                self.input.clear();
 
                 Modes::Bytes
             }
