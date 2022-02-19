@@ -72,7 +72,7 @@ pub struct TermState<'a> {
     pub prev_mode: Modes,
     //TODO: find a better place for it
     pub bytes: Vec<u8>,
-    pub bytes_changed: HashSet<(u16, u16)>,
+    pub bytes_changed: HashSet<usize>,
 }
 
 impl From<Args> for Parameters {

@@ -63,8 +63,8 @@ impl<'a> Mode for ChangeMode<'a> {
 
                 state.bytes[byte_index] = byte;
 
-                if !state.bytes_changed.contains(&(state.column, state.row)) {
-                    state.bytes_changed.insert((state.column, state.row));
+                if !state.bytes_changed.contains(&byte_index) {
+                    state.bytes_changed.insert(byte_index);
                 }
 
                 self.input.clear();

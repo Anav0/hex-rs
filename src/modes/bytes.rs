@@ -58,18 +58,19 @@ impl<'a> BytesMode<'a> {
 }
 impl<'a> Mode for BytesMode<'a> {
     fn handle_input(&mut self, event: &KeyEvent, state: &mut TermState) -> Result<Modes> {
-        let action = self
-            .keyboard
-            .get(&event.code)
-            .expect(&format!("Failed to handle key: '{:?}'", event.code));
-        let action = action(state);
+        match self.keyboard.get(&event.code) {
+            Some(action) => {
+                let action = action(state);
 
-        //TODO: get rid of Action
-        match action {
-            crate::misc::Action::Quit => self.quit = true,
-            crate::misc::Action::DrawHelp => return Ok(Modes::Help),
-            crate::misc::Action::Change => return Ok(Modes::Change),
-            _ => {}
+                //TODO: get rid of Action
+                match action {
+                    crate::misc::Action::Quit => self.quit = true,
+                    crate::misc::Action::DrawHelp => return Ok(Modes::Help),
+                    crate::misc::Action::Change => return Ok(Modes::Change),
+                    _ => {}
+                }
+            }
+            None => {}
         }
 
         Ok(Modes::Bytes)
@@ -168,7 +169,7 @@ fn draw_bytes(
 
         if byte_y == state.row && byte_x == state.column {
             queue!(stdout, SetForegroundColor(Color::DarkBlue))?;
-        } else if state.bytes_changed.contains(&(byte_x, byte_y)) {
+        } else if state.bytes_changed.contains(&i) {
             queue!(stdout, SetForegroundColor(Color::Red))?;
         } else {
             queue!(stdout, SetForegroundColor(Color::DarkGrey))?;
