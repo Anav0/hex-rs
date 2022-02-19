@@ -3,19 +3,34 @@ use std::{
     io::Write,
 };
 
-use crate::{misc::Action, misc::Direction, modes::Modes, StatusMode, TermState};
+use crate::{
+    misc::{get_byte_at_cursor, Action},
+    misc::{Direction, Parameters},
+    modes::Modes,
+    StatusMode, TermState,
+};
 
-pub fn general_status(state: &mut TermState) -> Action {
+fn save_bytes(path: &str, bytes: &Vec<u8>) {
+    let mut file = OpenOptions::new()
+        .write(true)
+        .truncate(true)
+        .open(path)
+        .expect("Failed to save changes");
+
+    file.write(&bytes).expect("Failed to save changes");
+}
+
+pub fn general_status(state: &mut TermState, parameters: &Parameters) -> Action {
     state.status_mode = StatusMode::General;
     Action::DrawBytes
 }
 
-pub fn keys_status(state: &mut TermState) -> Action {
+pub fn keys_status(state: &mut TermState, parameters: &Parameters) -> Action {
     state.status_mode = StatusMode::Keys;
     Action::DrawBytes
 }
 
-pub fn help(state: &mut TermState) -> Action {
+pub fn help(state: &mut TermState, parameters: &Parameters) -> Action {
     if state.prev_mode != Modes::Help {
         return Action::DrawHelp;
     }
@@ -23,34 +38,31 @@ pub fn help(state: &mut TermState) -> Action {
     Action::DrawBytes
 }
 
-pub fn remove(state: &mut TermState) -> Action {
-    Action::DrawBytes
-}
+pub fn remove(state: &mut TermState, parameters: &Parameters) -> Action {
+    let byte_index = get_byte_at_cursor(state, parameters);
 
-pub fn save(state: &mut TermState) -> Action {
-    // @FIX
-    let mut file = OpenOptions::new()
-        .write(true)
-        .truncate(true)
-        .open(state.file_path)
-        .expect("Failed to save changes");
+    state.bytes.remove(byte_index);
 
-    file.write(&state.bytes).expect("Failed to save changes");
+    save_bytes(state.file_path, &state.bytes);
 
     state.bytes_changed.clear();
 
     Action::DrawBytes
 }
 
-pub fn edit(state: &mut TermState) -> Action {
-    Action::Change
-}
+pub fn save(state: &mut TermState, parameters: &Parameters) -> Action {
+    save_bytes(state.file_path, &state.bytes);
 
-pub fn delete(state: &mut TermState) -> Action {
+    state.bytes_changed.clear();
+
     Action::DrawBytes
 }
 
-pub fn go_left(state: &mut TermState) -> Action {
+pub fn edit(state: &mut TermState, parameters: &Parameters) -> Action {
+    Action::Change
+}
+
+pub fn go_left(state: &mut TermState, parameters: &Parameters) -> Action {
     let jump_by = calculate_leap(&state, Direction::Left);
     if jump_by <= state.column {
         state.column -= jump_by;
@@ -58,7 +70,7 @@ pub fn go_left(state: &mut TermState) -> Action {
     Action::DrawBytes
 }
 
-pub fn go_right(state: &mut TermState) -> Action {
+pub fn go_right(state: &mut TermState, parameters: &Parameters) -> Action {
     let jump_by = calculate_leap(&state, Direction::Right);
     if state.column + jump_by <= state.term_width {
         state.column += jump_by;
@@ -66,33 +78,33 @@ pub fn go_right(state: &mut TermState) -> Action {
     Action::DrawBytes
 }
 
-pub fn go_up(state: &mut TermState) -> Action {
+pub fn go_up(state: &mut TermState, parameters: &Parameters) -> Action {
     if state.row >= 2 {
         state.row -= 1;
     }
     Action::DrawBytes
 }
 
-pub fn go_down(state: &mut TermState) -> Action {
+pub fn go_down(state: &mut TermState, parameters: &Parameters) -> Action {
     if state.row != state.term_height {
         state.row += 1;
     }
     Action::DrawBytes
 }
 
-pub fn scroll_up(state: &mut TermState) -> Action {
+pub fn scroll_up(state: &mut TermState, parameters: &Parameters) -> Action {
     if state.render_from_offset != 0 {
         state.render_from_offset -= 1
     }
     Action::DrawBytes
 }
 
-pub fn scroll_down(state: &mut TermState) -> Action {
+pub fn scroll_down(state: &mut TermState, parameters: &Parameters) -> Action {
     state.render_from_offset += 1;
     Action::DrawBytes
 }
 
-pub fn quit(state: &mut TermState) -> Action {
+pub fn quit(state: &mut TermState, parameters: &Parameters) -> Action {
     Action::Quit
 }
 

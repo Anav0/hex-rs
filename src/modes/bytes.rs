@@ -57,10 +57,15 @@ impl<'a> BytesMode<'a> {
     }
 }
 impl<'a> Mode for BytesMode<'a> {
-    fn handle_input(&mut self, event: &KeyEvent, state: &mut TermState) -> Result<Modes> {
+    fn handle_input(
+        &mut self,
+        event: &KeyEvent,
+        state: &mut TermState,
+        parameters: &Parameters,
+    ) -> Result<Modes> {
         match self.keyboard.get(&event.code) {
             Some(action) => {
-                let action = action(state);
+                let action = action(state, parameters);
 
                 //TODO: get rid of Action
                 match action {
@@ -76,7 +81,12 @@ impl<'a> Mode for BytesMode<'a> {
         Ok(Modes::Bytes)
     }
 
-    fn handle_mouse(&mut self, event: &MouseEvent, state: &mut TermState) -> Result<Modes> {
+    fn handle_mouse(
+        &mut self,
+        event: &MouseEvent,
+        state: &mut TermState,
+        parameters: &Parameters,
+    ) -> Result<Modes> {
         match event.kind {
             event::MouseEventKind::ScrollDown => state.render_from_offset += 1,
             event::MouseEventKind::ScrollUp => state.render_from_offset -= 1,
@@ -98,6 +108,7 @@ impl<'a> Mode for BytesMode<'a> {
         width: u16,
         height: u16,
         state: &mut TermState,
+        parameters: &Parameters,
     ) -> Result<Modes> {
         if width < self.minimal_width {
             self.to_draw = BytesScreens::TooSmall;

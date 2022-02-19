@@ -5,7 +5,7 @@ use crossterm::{
     terminal::{self, ClearType},
 };
 
-use crate::misc::{Parameters, TermState};
+use crate::misc::{get_byte_at_cursor, Parameters, TermState};
 
 use super::{Mode, Modes};
 
@@ -28,6 +28,7 @@ impl<'a> Mode for ChangeMode<'a> {
         &mut self,
         event: &crossterm::event::KeyEvent,
         state: &mut TermState,
+        parameters: &Parameters,
     ) -> crossterm::Result<super::Modes> {
         let end_mode = match event.code {
             KeyCode::Char(char) => {
@@ -53,13 +54,7 @@ impl<'a> Mode for ChangeMode<'a> {
                 let byte =
                     u8::from_str_radix(&self.input, 16).expect("Failed to convert input to byte");
 
-                let bytes_section_column = state.dimensions.bytes.0;
-
-                // @Improvement: Move "5" (hex value width + space) to separate variable
-                let actual_row = state.row - 1;
-                let actual_column = (state.column - bytes_section_column) / 5;
-
-                let byte_index = (actual_row * self.parameters.byte_size + actual_column) as usize;
+                let byte_index = get_byte_at_cursor(state, self.parameters);
 
                 state.bytes[byte_index] = byte;
 
@@ -81,6 +76,7 @@ impl<'a> Mode for ChangeMode<'a> {
         &mut self,
         event: &crossterm::event::MouseEvent,
         state: &mut TermState,
+        parameters: &Parameters,
     ) -> crossterm::Result<super::Modes> {
         Ok(Modes::Change)
     }
@@ -91,6 +87,7 @@ impl<'a> Mode for ChangeMode<'a> {
         width: u16,
         height: u16,
         state: &mut TermState,
+        parameters: &Parameters,
     ) -> crossterm::Result<super::Modes> {
         Ok(Modes::Change)
     }

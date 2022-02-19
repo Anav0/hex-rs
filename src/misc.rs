@@ -97,3 +97,12 @@ impl From<Args> for Parameters {
         }
     }
 }
+
+pub fn get_byte_at_cursor(state: &TermState, parameters: &Parameters) -> usize {
+    // @Improvement: Move "5" (hex value width + space) to separate variable
+    let bytes_section_column = state.dimensions.bytes.0;
+    let actual_row = state.row - 1;
+    let actual_column = (state.column - bytes_section_column) / 5;
+
+    return (actual_row * parameters.byte_size + actual_column) as usize;
+}

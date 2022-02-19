@@ -75,11 +75,17 @@ fn main() -> Result<()> {
     loop {
         if poll(Duration::from_millis(16))? {
             let new_mode = match read()? {
-                Event::Key(event) => modes[index].handle_input(&event, &mut state)?,
-                Event::Mouse(event) => modes[index].handle_mouse(&event, &mut state)?,
-                Event::Resize(width, height) => {
-                    modes[index].handle_resize(&mut stdout, width, height, &mut state)?
+                Event::Key(event) => modes[index].handle_input(&event, &mut state, &parameters)?,
+                Event::Mouse(event) => {
+                    modes[index].handle_mouse(&event, &mut state, &parameters)?
                 }
+                Event::Resize(width, height) => modes[index].handle_resize(
+                    &mut stdout,
+                    width,
+                    height,
+                    &mut state,
+                    &parameters,
+                )?,
             };
 
             if modes[index].should_quit() {
