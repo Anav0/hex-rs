@@ -4,10 +4,12 @@ use std::io::Stdout;
 
 mod bytes;
 mod change;
+mod goto;
 mod help;
 
 pub use bytes::BytesMode;
 pub use change::ChangeMode;
+pub use goto::GoToMode;
 pub use help::HelpMode;
 
 use crate::misc::{Parameters, TermState};
@@ -17,6 +19,8 @@ pub enum Modes {
     Bytes,
     Help,
     Change,
+    GoTo,
+    Quit,
 }
 
 pub trait Mode {
@@ -40,6 +44,5 @@ pub trait Mode {
         state: &mut TermState,
         parameters: &Parameters,
     ) -> Result<Modes>;
-    fn should_quit(&self) -> bool;
     fn draw(&self, stdout: &mut Stdout, state: &TermState) -> Result<()>;
 }

@@ -19,7 +19,6 @@ pub struct BytesMode<'a> {
     keyboard: &'a Keyboard<'a>,
     parameters: &'a Parameters,
     offsets: u16,
-    quit: bool,
     minimal_width: u16,
     to_draw: BytesScreens,
 }
@@ -49,7 +48,6 @@ impl<'a> BytesMode<'a> {
             parameters,
             offsets,
             minimal_width,
-            quit: false,
             to_draw: BytesScreens::Bytes,
         };
 
@@ -64,21 +62,9 @@ impl<'a> Mode for BytesMode<'a> {
         parameters: &Parameters,
     ) -> Result<Modes> {
         match self.keyboard.get(&event.code) {
-            Some(action) => {
-                let action = action(state, parameters);
-
-                //TODO: get rid of Action
-                match action {
-                    crate::misc::Action::Quit => self.quit = true,
-                    crate::misc::Action::DrawHelp => return Ok(Modes::Help),
-                    crate::misc::Action::Change => return Ok(Modes::Change),
-                    _ => {}
-                }
-            }
-            None => {}
+            Some(action) => Ok(action(state, parameters)),
+            None => Ok(Modes::Bytes),
         }
-
-        Ok(Modes::Bytes)
     }
 
     fn handle_mouse(
@@ -148,10 +134,6 @@ impl<'a> Mode for BytesMode<'a> {
         }
 
         Ok(())
-    }
-
-    fn should_quit(&self) -> bool {
-        self.quit
     }
 }
 

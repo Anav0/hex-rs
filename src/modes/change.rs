@@ -96,10 +96,6 @@ impl<'a> Mode for ChangeMode<'a> {
         Ok(Modes::Change)
     }
 
-    fn should_quit(&self) -> bool {
-        false
-    }
-
     fn draw(&self, stdout: &mut std::io::Stdout, state: &TermState) -> crossterm::Result<()> {
         for i in 1..4 {
             queue!(

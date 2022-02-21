@@ -15,7 +15,7 @@ use crossterm::{
 use crossterm::{terminal, Result};
 use keyboard::Keyboard;
 use misc::{Dimensions, Parameters, StatusMode, TermState};
-use modes::{BytesMode, ChangeMode, HelpMode, Mode, Modes};
+use modes::{BytesMode, ChangeMode, GoToMode, HelpMode, Mode, Modes};
 
 mod actions;
 mod keyboard;
@@ -69,7 +69,13 @@ fn main() -> Result<()> {
     let mut bytes_mode = BytesMode::new(&keyboard, &parameters, file_size as usize)?;
     let mut help_mode = HelpMode::new(padding, &keyboard);
     let mut change_mode = ChangeMode::new(&parameters);
-    let modes: [&mut dyn Mode; 3] = [&mut bytes_mode, &mut help_mode, &mut change_mode];
+    let mut goto_mode = GoToMode::new();
+    let modes: [&mut dyn Mode; 4] = [
+        &mut bytes_mode,
+        &mut help_mode,
+        &mut change_mode,
+        &mut goto_mode,
+    ];
 
     let mut index = 0;
 
@@ -89,14 +95,12 @@ fn main() -> Result<()> {
                 )?,
             };
 
-            if modes[index].should_quit() {
-                break;
-            }
-
             let new_index = match new_mode {
                 Modes::Bytes => 0,
                 Modes::Help => 1,
                 Modes::Change => 2,
+                Modes::GoTo => 3,
+                Modes::Quit => break,
             };
 
             if new_index != index {

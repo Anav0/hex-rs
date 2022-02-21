@@ -14,11 +14,12 @@ use crate::{
         edit, general_status, go_down, go_left, go_right, go_up, help, keys_status, quit, remove,
         save, scroll_down, scroll_up,
     },
-    misc::{Action, Parameters},
+    misc::Parameters,
+    modes::Modes,
     TermState,
 };
 
-pub type KeyAction = dyn Fn(&mut TermState, &Parameters) -> Action;
+pub type KeyAction = dyn Fn(&mut TermState, &Parameters) -> Modes;
 
 pub struct Keyboard<'a> {
     keys_and_actions: HashMap<KeyCode, &'a KeyAction>,
@@ -142,6 +143,7 @@ fn match_action<'b>(action: &str) -> (&'b KeyAction, &str) {
         "scroll_up" => (&scroll_up, "pervious offset"),
         "quit" => (&quit, "quit"),
         "exit" => (&quit, "quit"),
+        "goto" => (&|x, y| Modes::GoTo, "goto"),
         "delete" => (&remove, "remove byte"),
         "edit" => (&edit, "change byte"),
         "save" => (&save, "save changes"),

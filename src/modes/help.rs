@@ -55,10 +55,6 @@ impl<'a> Mode for HelpMode<'a> {
         Ok(Modes::Help)
     }
 
-    fn should_quit(&self) -> bool {
-        false
-    }
-
     fn draw(&self, stdout: &mut Stdout, state: &TermState) -> Result<()> {
         let help_text = self.keyboard.help("\n");
         let help_items = help_text.lines();

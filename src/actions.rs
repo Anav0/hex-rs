@@ -4,31 +4,31 @@ use std::{
 };
 
 use crate::{
-    misc::{get_byte_at_cursor, Action},
+    misc::get_byte_at_cursor,
     misc::{Direction, Parameters},
     modes::Modes,
     StatusMode, TermState,
 };
 
-pub fn general_status(state: &mut TermState, parameters: &Parameters) -> Action {
+pub fn general_status(state: &mut TermState, parameters: &Parameters) -> Modes {
     state.status_mode = StatusMode::General;
-    Action::DrawBytes
+    Modes::Bytes
 }
 
-pub fn keys_status(state: &mut TermState, parameters: &Parameters) -> Action {
+pub fn keys_status(state: &mut TermState, parameters: &Parameters) -> Modes {
     state.status_mode = StatusMode::Keys;
-    Action::DrawBytes
+    Modes::Bytes
 }
 
-pub fn help(state: &mut TermState, parameters: &Parameters) -> Action {
+pub fn help(state: &mut TermState, parameters: &Parameters) -> Modes {
     if state.prev_mode != Modes::Help {
-        return Action::DrawHelp;
+        return Modes::Help;
     }
 
-    Action::DrawBytes
+    Modes::Bytes
 }
 
-pub fn remove(state: &mut TermState, parameters: &Parameters) -> Action {
+pub fn remove(state: &mut TermState, parameters: &Parameters) -> Modes {
     let byte_index = get_byte_at_cursor(state, parameters);
 
     if state.bytes_changed.contains(&byte_index) {
@@ -41,10 +41,10 @@ pub fn remove(state: &mut TermState, parameters: &Parameters) -> Action {
         state.bytes_removed.remove(&byte_index);
     }
 
-    Action::DrawBytes
+    Modes::Bytes
 }
 
-pub fn save(state: &mut TermState, parameters: &Parameters) -> Action {
+pub fn save(state: &mut TermState, parameters: &Parameters) -> Modes {
     //@Improve: Change this to some sort of Rope data structure in the future.
     let mut bytes_copy = Vec::with_capacity(state.bytes.len());
     for i in 0..state.bytes.len() {
@@ -65,57 +65,57 @@ pub fn save(state: &mut TermState, parameters: &Parameters) -> Action {
     file.write(&state.bytes).expect("Failed to save changes");
     state.bytes_changed.clear();
 
-    Action::DrawBytes
+    Modes::Bytes
 }
 
-pub fn edit(state: &mut TermState, parameters: &Parameters) -> Action {
-    Action::Change
+pub fn edit(state: &mut TermState, parameters: &Parameters) -> Modes {
+    Modes::Change
 }
 
-pub fn go_left(state: &mut TermState, parameters: &Parameters) -> Action {
+pub fn go_left(state: &mut TermState, parameters: &Parameters) -> Modes {
     let jump_by = calculate_leap(&state, Direction::Left);
     if jump_by <= state.column {
         state.column -= jump_by;
     }
-    Action::DrawBytes
+    Modes::Bytes
 }
 
-pub fn go_right(state: &mut TermState, parameters: &Parameters) -> Action {
+pub fn go_right(state: &mut TermState, parameters: &Parameters) -> Modes {
     let jump_by = calculate_leap(&state, Direction::Right);
     if state.column + jump_by <= state.term_width {
         state.column += jump_by;
     }
-    Action::DrawBytes
+    Modes::Bytes
 }
 
-pub fn go_up(state: &mut TermState, parameters: &Parameters) -> Action {
+pub fn go_up(state: &mut TermState, parameters: &Parameters) -> Modes {
     if state.row >= 2 {
         state.row -= 1;
     }
-    Action::DrawBytes
+    Modes::Bytes
 }
 
-pub fn go_down(state: &mut TermState, parameters: &Parameters) -> Action {
+pub fn go_down(state: &mut TermState, parameters: &Parameters) -> Modes {
     if state.row != state.term_height {
         state.row += 1;
     }
-    Action::DrawBytes
+    Modes::Bytes
 }
 
-pub fn scroll_up(state: &mut TermState, parameters: &Parameters) -> Action {
+pub fn scroll_up(state: &mut TermState, parameters: &Parameters) -> Modes {
     if state.render_from_offset != 0 {
         state.render_from_offset -= 1
     }
-    Action::DrawBytes
+    Modes::Bytes
 }
 
-pub fn scroll_down(state: &mut TermState, parameters: &Parameters) -> Action {
+pub fn scroll_down(state: &mut TermState, parameters: &Parameters) -> Modes {
     state.render_from_offset += 1;
-    Action::DrawBytes
+    Modes::Bytes
 }
 
-pub fn quit(state: &mut TermState, parameters: &Parameters) -> Action {
-    Action::Quit
+pub fn quit(state: &mut TermState, parameters: &Parameters) -> Modes {
+    Modes::Quit
 }
 
 fn calculate_leap(state: &TermState, direction: Direction) -> u16 {

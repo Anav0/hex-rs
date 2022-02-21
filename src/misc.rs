@@ -37,14 +37,6 @@ impl Dimensions {
 }
 
 #[derive(PartialEq)]
-pub enum Action {
-    Quit,
-    DrawBytes,
-    DrawHelp,
-    Change,
-}
-
-#[derive(PartialEq)]
 pub enum Direction {
     Left,
     Right,
