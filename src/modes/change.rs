@@ -56,11 +56,15 @@ impl<'a> Mode for ChangeMode<'a> {
 
                 let byte_index = get_byte_at_cursor(state, self.parameters);
 
-                state.bytes[byte_index] = byte;
+                if state.bytes_removed.contains(&byte_index) {
+                    state.bytes_removed.remove(&byte_index);
+                }
 
                 if !state.bytes_changed.contains(&byte_index) {
                     state.bytes_changed.insert(byte_index);
                 }
+
+                state.bytes[byte_index] = byte;
 
                 self.input.clear();
 

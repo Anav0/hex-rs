@@ -178,10 +178,13 @@ fn draw_bytes(
             cursor::MoveTo(byte_x, byte_y),
         )?;
 
+        //@Improvement: change to something nicer
         if byte_y == state.row && byte_x == state.column {
             queue!(stdout, SetForegroundColor(Color::DarkBlue))?;
-        } else if state.bytes_changed.contains(&i) {
+        } else if state.bytes_removed.contains(&i) {
             queue!(stdout, SetForegroundColor(Color::Red))?;
+        } else if state.bytes_changed.contains(&i) {
+            queue!(stdout, SetForegroundColor(Color::DarkBlue))?;
         } else {
             queue!(stdout, SetForegroundColor(Color::DarkGrey))?;
         }

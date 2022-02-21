@@ -60,6 +60,7 @@ fn main() -> Result<()> {
         dimensions: &dimensions,
         prev_mode: Modes::Bytes,
         bytes_changed: HashSet::new(),
+        bytes_removed: HashSet::new(),
         bytes,
         file_path: &parameters.file_path,
     };

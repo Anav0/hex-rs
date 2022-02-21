@@ -1,6 +1,6 @@
 use std::{
     fs::{self, OpenOptions},
-    io::Write,
+    io::{Read, Write},
 };
 
 use crate::{
@@ -9,16 +9,6 @@ use crate::{
     modes::Modes,
     StatusMode, TermState,
 };
-
-fn save_bytes(path: &str, bytes: &Vec<u8>) {
-    let mut file = OpenOptions::new()
-        .write(true)
-        .truncate(true)
-        .open(path)
-        .expect("Failed to save changes");
-
-    file.write(&bytes).expect("Failed to save changes");
-}
 
 pub fn general_status(state: &mut TermState, parameters: &Parameters) -> Action {
     state.status_mode = StatusMode::General;
@@ -41,18 +31,36 @@ pub fn help(state: &mut TermState, parameters: &Parameters) -> Action {
 pub fn remove(state: &mut TermState, parameters: &Parameters) -> Action {
     let byte_index = get_byte_at_cursor(state, parameters);
 
-    state.bytes.remove(byte_index);
+    if state.bytes_changed.contains(&byte_index) {
+        state.bytes_changed.remove(&byte_index);
+    }
 
-    save_bytes(state.file_path, &state.bytes);
-
-    state.bytes_changed.clear();
+    if !state.bytes_removed.contains(&byte_index) {
+        state.bytes_removed.insert(byte_index);
+    }
 
     Action::DrawBytes
 }
 
 pub fn save(state: &mut TermState, parameters: &Parameters) -> Action {
-    save_bytes(state.file_path, &state.bytes);
+    //@Improve: Change this to some sort of Rope data structure in the future.
+    let mut bytes_copy = Vec::with_capacity(state.bytes.len());
+    for i in 0..state.bytes.len() {
+        if state.bytes_removed.contains(&i) {
+            continue;
+        }
+        bytes_copy.push(state.bytes[i]);
+    }
+    state.bytes = bytes_copy;
+    state.bytes_removed.clear();
 
+    let mut file = OpenOptions::new()
+        .write(true)
+        .truncate(true)
+        .open(&parameters.file_path)
+        .expect("Failed to save changes");
+
+    file.write(&state.bytes).expect("Failed to save changes");
     state.bytes_changed.clear();
 
     Action::DrawBytes

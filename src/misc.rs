@@ -72,6 +72,7 @@ pub struct TermState<'a> {
     pub prev_mode: Modes,
     //TODO: find a better place for it
     pub bytes: Vec<u8>,
+    pub bytes_removed: HashSet<usize>,
     pub bytes_changed: HashSet<usize>,
     pub file_path: &'a str,
 }
