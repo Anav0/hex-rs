@@ -143,7 +143,7 @@ fn match_action<'b>(action: &str) -> (&'b KeyAction, &str) {
         "scroll_up" => (&scroll_up, "pervious offset"),
         "quit" => (&quit, "quit"),
         "exit" => (&quit, "quit"),
-        "goto" => (&|x, y| Modes::GoTo, "goto"),
+        "goto" => (&|_, _| Modes::GoTo, "goto"),
         "delete" => (&remove, "remove byte"),
         "edit" => (&edit, "change byte"),
         "save" => (&save, "save changes"),
@@ -180,6 +180,7 @@ fn create_config(path: &PathBuf) -> PathBuf {
     keys += "f5      save\n";
     keys += "1       general_status\n";
     keys += "2       keys_status\n";
+    keys += ":       goto\n";
 
     file.write_all(keys.as_bytes())
         .expect("Failed to write to keys config file");
