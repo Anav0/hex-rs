@@ -238,9 +238,25 @@ fn draw_chars<W: Write>(
         let mut fg = Color::DarkGrey;
         let mut bg = Color::Reset;
 
-        if byte_y == state.row && required_y == state.column {
+        if state.bytes_removed.contains(&i) {
+            fg = Color::DarkRed;
+
+            if decoded == ' ' {
+                bg = Color::DarkRed;
+            }
+        }
+
+        if state.bytes_changed.contains(&i) {
+            fg = Color::DarkBlue;
+
             if decoded == ' ' {
                 bg = Color::DarkBlue;
+            }
+        }
+
+        if byte_y == state.row && required_y == state.column {
+            if decoded == ' ' {
+                bg = Color::DarkBlue
             }
             fg = Color::DarkBlue;
         }

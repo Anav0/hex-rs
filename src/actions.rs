@@ -37,6 +37,8 @@ pub fn remove(state: &mut TermState, parameters: &Parameters) -> Action {
 
     if !state.bytes_removed.contains(&byte_index) {
         state.bytes_removed.insert(byte_index);
+    } else {
+        state.bytes_removed.remove(&byte_index);
     }
 
     Action::DrawBytes
