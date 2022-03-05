@@ -100,3 +100,91 @@ pub fn get_byte_at_cursor(state: &TermState, parameters: &Parameters) -> usize {
 
     return (actual_row * parameters.byte_size + actual_column) as usize;
 }
+
+pub fn get_index_of_closest_change(pos: usize, state: &TermState, direction: Direction) -> usize {
+    let mut closest_diff = usize::MAX;
+    let mut closest_changed_index = usize::MAX;
+
+    match direction {
+        Direction::Left => {
+            for i in &state.bytes_changed {
+                if i == &pos || i > &pos {
+                    continue;
+                }
+                let diff = pos - i;
+
+                if diff < closest_diff {
+                    closest_changed_index = *i;
+                    closest_diff = diff;
+                }
+            }
+
+            for i in &state.bytes_removed {
+                if i == &pos || i > &pos {
+                    continue;
+                }
+
+                let diff = pos - i;
+                if diff < closest_diff {
+                    closest_changed_index = *i;
+                    closest_diff = diff;
+                }
+            }
+        }
+        Direction::Right => {
+            for i in &state.bytes_changed {
+                if i == &pos || i < &pos {
+                    continue;
+                }
+                let diff = i - pos;
+
+                if diff < closest_diff {
+                    closest_changed_index = *i;
+                    closest_diff = diff;
+                }
+            }
+
+            for i in &state.bytes_removed {
+                if i == &pos || i < &pos {
+                    continue;
+                }
+
+                let diff = i - pos;
+                if diff < closest_diff {
+                    closest_changed_index = *i;
+                    closest_diff = diff;
+                }
+            }
+        }
+    }
+
+    closest_changed_index
+}
+
+pub fn get_offset_for_index(index: usize, parameters: &Parameters) -> usize {
+    index / parameters.byte_size as usize
+}
+
+pub fn get_column_for_index(index: usize, parameters: &Parameters) -> u16 {
+    let offset = get_offset_for_index(index, parameters);
+    let closest_byte_pos_in_row = index - (offset * parameters.byte_size as usize);
+
+    // @Improvement: Change this 5, 10 and 5 to be stored or calculated from parameters
+    (closest_byte_pos_in_row as u16 * 5) + 10 + 5
+}
+
+pub fn put_cursor_at_index(state: &mut TermState, closest_byte_index: usize, parameters: &Parameters) {
+    let closest_byte_offset = get_offset_for_index(closest_byte_index, &parameters);
+
+    let visible_start = state.render_from_offset;
+    let visible_end = (state.render_from_offset as u16 + state.term_height - 2) as usize;
+
+    if closest_byte_offset >= visible_start && closest_byte_offset <= visible_end {
+        state.row = (closest_byte_offset - visible_start) as u16 + 1;
+    } else {
+        state.render_from_offset = closest_byte_offset;
+        state.row = 1;
+    }
+
+    state.column = get_column_for_index(closest_byte_index, parameters);
+}
