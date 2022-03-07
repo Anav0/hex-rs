@@ -16,7 +16,6 @@ pub fn naive_search(pattern: &Vec<u8>, text: &Vec<u8>) -> HashSet<Range<usize>> 
         if j >= text.len() || i + j >= text.len() {
             break;
         }
-        println!("\n{} {}", i, j);
 
         let byte_to_match = pattern[i];
         let byte = &text[j + i];

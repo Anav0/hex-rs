@@ -164,19 +164,8 @@ fn draw_bytes(
             cursor::MoveTo(byte_x, byte_y),
         )?;
 
-        let mut fg = Color::Reset;
+        let mut fg = Color::DarkGrey;
         let mut bg = Color::Reset;
-
-        //@Improvement: change to something nicer
-        if byte_y == state.row && byte_x == state.column {
-            fg = Color::DarkBlue;
-        } else if state.bytes_removed.contains(&i) {
-            fg = Color::Red;
-        } else if state.bytes_changed.contains(&i) {
-            fg = Color::DarkBlue;
-        } else {
-            fg = Color::DarkGrey;
-        }
 
         // Check if byte is in one of found sequences
         //@Improvement: change to something nicer
@@ -185,6 +174,15 @@ fn draw_bytes(
                 fg = Color::White;
                 break;
             }
+        }
+
+        //@Improvement: change to something nicer
+        if byte_y == state.row && byte_x == state.column {
+            fg = Color::DarkBlue;
+        } else if state.bytes_removed.contains(&i) {
+            fg = Color::Red;
+        } else if state.bytes_changed.contains(&i) {
+            fg = Color::DarkBlue;
         }
 
         fg_info.insert(i, fg);
@@ -208,14 +206,7 @@ fn draw_bytes(
 
             let starting_pos = (state.dimensions.decoded.0, byte_y);
 
-            draw_chars(
-                stdout,
-                starting_pos,
-                range,
-                bytes,
-                &fg_info,
-                &bg_info,
-            )?;
+            draw_chars(stdout, starting_pos, range, bytes, &fg_info, &bg_info)?;
 
             iter = 0;
             byte_x = state.padding + 13;
