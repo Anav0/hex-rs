@@ -3,6 +3,7 @@ use std::{
     env::Args,
     fs::File,
     io::Read,
+    ops::Range,
 };
 
 use crate::modes::Modes;
@@ -66,6 +67,7 @@ pub struct TermState<'a> {
     pub bytes: Vec<u8>,
     pub bytes_removed: HashSet<usize>,
     pub bytes_changed: HashSet<usize>,
+    pub found_sequences: HashSet<Range<usize>>,
     pub file_path: &'a str,
 }
 
@@ -173,7 +175,11 @@ pub fn get_column_for_index(index: usize, parameters: &Parameters) -> u16 {
     (closest_byte_pos_in_row as u16 * 5) + 10 + 5
 }
 
-pub fn put_cursor_at_index(state: &mut TermState, closest_byte_index: usize, parameters: &Parameters) {
+pub fn put_cursor_at_index(
+    state: &mut TermState,
+    closest_byte_index: usize,
+    parameters: &Parameters,
+) {
     let closest_byte_offset = get_offset_for_index(closest_byte_index, &parameters);
 
     let visible_start = state.render_from_offset;

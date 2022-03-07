@@ -6,11 +6,13 @@ mod bytes;
 mod change;
 mod goto;
 mod help;
+mod search;
 
 pub use bytes::BytesMode;
 pub use change::ChangeMode;
 pub use goto::GoToMode;
 pub use help::HelpMode;
+pub use search::SearchMode;
 
 use crate::misc::{Parameters, TermState};
 
@@ -20,6 +22,7 @@ pub enum Modes {
     Help,
     Change,
     GoTo,
+    Search,
     Quit,
 }
 

@@ -15,12 +15,13 @@ use crossterm::{
 use crossterm::{terminal, Result};
 use keyboard::Keyboard;
 use misc::{Dimensions, Parameters, StatusMode, TermState};
-use modes::{BytesMode, ChangeMode, GoToMode, HelpMode, Mode, Modes};
+use modes::{BytesMode, ChangeMode, GoToMode, HelpMode, Mode, Modes, SearchMode};
 
 mod actions;
 mod keyboard;
 mod misc;
 mod modes;
+mod string;
 
 fn main() -> Result<()> {
     let args = env::args();
@@ -62,6 +63,7 @@ fn main() -> Result<()> {
         bytes_changed: HashSet::new(),
         bytes_removed: HashSet::new(),
         bytes,
+        found_sequences: HashSet::new(),
         file_path: &parameters.file_path,
     };
 
@@ -69,12 +71,14 @@ fn main() -> Result<()> {
     let mut bytes_mode = BytesMode::new(&keyboard, &parameters, file_size as usize)?;
     let mut help_mode = HelpMode::new(padding, &keyboard);
     let mut change_mode = ChangeMode::new(&parameters);
+    let mut search_mode = SearchMode::new();
     let mut goto_mode = GoToMode::new();
-    let modes: [&mut dyn Mode; 4] = [
+    let modes: [&mut dyn Mode; 5] = [
         &mut bytes_mode,
         &mut help_mode,
         &mut change_mode,
         &mut goto_mode,
+        &mut search_mode,
     ];
 
     let mut index = 0;
@@ -100,6 +104,7 @@ fn main() -> Result<()> {
                 Modes::Help => 1,
                 Modes::Change => 2,
                 Modes::GoTo => 3,
+                Modes::Search => 4,
                 Modes::Quit => break,
             };
 

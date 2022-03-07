@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::fs::File;
 use std::io::{Read, Stdout, Write};
 use std::ops::Range;
@@ -151,6 +152,9 @@ fn draw_bytes(
     let mut iter = 0;
     let start_from = parameters.byte_size as usize * state.render_from_offset;
 
+    let mut fg_info: HashMap<usize, Color> = HashMap::new();
+    let mut bg_info: HashMap<usize, Color> = HashMap::new();
+
     for i in start_from..bytes.len() {
         let byte = bytes[i];
 
@@ -160,18 +164,38 @@ fn draw_bytes(
             cursor::MoveTo(byte_x, byte_y),
         )?;
 
+        let mut fg = Color::Reset;
+        let mut bg = Color::Reset;
+
         //@Improvement: change to something nicer
         if byte_y == state.row && byte_x == state.column {
-            queue!(stdout, SetForegroundColor(Color::DarkBlue))?;
+            fg = Color::DarkBlue;
         } else if state.bytes_removed.contains(&i) {
-            queue!(stdout, SetForegroundColor(Color::Red))?;
+            fg = Color::Red;
         } else if state.bytes_changed.contains(&i) {
-            queue!(stdout, SetForegroundColor(Color::DarkBlue))?;
+            fg = Color::DarkBlue;
         } else {
-            queue!(stdout, SetForegroundColor(Color::DarkGrey))?;
+            fg = Color::DarkGrey;
         }
 
-        queue!(stdout, style::Print(format!("{:#04X}", byte)))?;
+        // Check if byte is in one of found sequences
+        //@Improvement: change to something nicer
+        for range in &state.found_sequences {
+            if range.contains(&i) {
+                fg = Color::White;
+                break;
+            }
+        }
+
+        fg_info.insert(i, fg);
+        bg_info.insert(i, bg);
+
+        queue!(
+            stdout,
+            SetForegroundColor(fg),
+            SetBackgroundColor(bg),
+            style::Print(format!("{:#04X}", byte))
+        )?;
 
         byte_x += 5;
         iter += 1;
@@ -184,7 +208,14 @@ fn draw_bytes(
 
             let starting_pos = (state.dimensions.decoded.0, byte_y);
 
-            draw_chars(stdout, state, starting_pos, range, bytes, byte_y)?;
+            draw_chars(
+                stdout,
+                starting_pos,
+                range,
+                bytes,
+                &fg_info,
+                &bg_info,
+            )?;
 
             iter = 0;
             byte_x = state.padding + 13;
@@ -201,55 +232,34 @@ fn draw_bytes(
 
 fn draw_chars<W: Write>(
     stdout: &mut W,
-    state: &TermState,
     starting_pos: (u16, u16),
     range: Range<usize>,
     bytes: &Vec<u8>,
-    byte_y: u16,
+    fg_info: &HashMap<usize, Color>,
+    bg_info: &HashMap<usize, Color>,
 ) -> Result<()> {
     queue!(
         stdout,
         cursor::MoveTo(starting_pos.0, starting_pos.1),
         SetForegroundColor(Color::DarkGrey)
     )?;
-    let mut char_pos = 0;
     for i in range {
-        let required_y = state.dimensions.bytes.0 + 5 * char_pos;
         let decoded = get_symbol(bytes[i]);
 
-        let mut fg = Color::DarkGrey;
-        let mut bg = Color::Reset;
+        let fg = fg_info.get(&i).unwrap();
+        let mut bg = bg_info.get(&i).unwrap();
 
-        if state.bytes_removed.contains(&i) {
-            fg = Color::DarkRed;
-
-            if decoded == ' ' {
-                bg = Color::DarkRed;
-            }
+        if decoded == ' ' {
+            bg = fg;
         }
 
-        if state.bytes_changed.contains(&i) {
-            fg = Color::DarkBlue;
-
-            if decoded == ' ' {
-                bg = Color::DarkBlue;
-            }
-        }
-
-        if byte_y == state.row && required_y == state.column {
-            if decoded == ' ' {
-                bg = Color::DarkBlue
-            }
-            fg = Color::DarkBlue;
-        }
         queue!(
             stdout,
             cursor::MoveRight(0),
-            SetForegroundColor(fg),
-            SetBackgroundColor(bg),
+            SetForegroundColor(*fg),
+            SetBackgroundColor(*bg),
             style::Print(decoded)
         )?;
-        char_pos += 1;
     }
 
     Ok(())

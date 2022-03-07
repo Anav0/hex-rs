@@ -24,6 +24,9 @@ pub fn keys_status(state: &mut TermState, parameters: &Parameters) -> Modes {
     Modes::Bytes
 }
 
+pub fn search(state: &mut TermState, parameters: &Parameters) -> Modes {
+    Modes::Search
+}
 pub fn help(state: &mut TermState, parameters: &Parameters) -> Modes {
     if state.prev_mode != Modes::Help {
         return Modes::Help;
