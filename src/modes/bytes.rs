@@ -62,7 +62,7 @@ impl<'a> Mode for BytesMode<'a> {
         state: &mut TermState,
         parameters: &Parameters,
     ) -> Result<Modes> {
-        match self.keyboard.get(&event.code) {
+        match self.keyboard.get(&event) {
             Some(action) => Ok(action(state, parameters)),
             None => Ok(Modes::Bytes),
         }

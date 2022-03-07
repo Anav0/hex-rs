@@ -7,7 +7,7 @@ use std::{
 use crate::{
     misc::{
         get_byte_at_cursor, get_column_for_index, get_index_of_closest_change,
-        get_offset_for_index, put_cursor_at_index,
+        get_index_of_closest_found, get_offset_for_index, put_cursor_at_index,
     },
     misc::{Direction, Parameters},
     modes::Modes,
@@ -105,6 +105,28 @@ pub fn go_up(state: &mut TermState, parameters: &Parameters) -> Modes {
 pub fn go_down(state: &mut TermState, parameters: &Parameters) -> Modes {
     if state.row != state.term_height {
         state.row += 1;
+    }
+    Modes::Bytes
+}
+
+pub fn next_found(state: &mut TermState, parameters: &Parameters) -> Modes {
+    let current_byte_index = get_byte_at_cursor(state, parameters);
+    let closest_byte_index =
+        get_index_of_closest_found(current_byte_index, &state, Direction::Right);
+
+    if closest_byte_index != usize::MAX {
+        put_cursor_at_index(state, closest_byte_index, parameters);
+    }
+    Modes::Bytes
+}
+
+pub fn prev_found(state: &mut TermState, parameters: &Parameters) -> Modes {
+    let current_byte_index = get_byte_at_cursor(state, parameters);
+    let closest_byte_index =
+        get_index_of_closest_found(current_byte_index, &state, Direction::Left);
+
+    if closest_byte_index != usize::MAX {
+        put_cursor_at_index(state, closest_byte_index, parameters);
     }
     Modes::Bytes
 }

@@ -1,6 +1,6 @@
 #![allow(dead_code)]
 
-use crossterm::event::KeyCode;
+use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 use directories::ProjectDirs;
 use std::{
     collections::HashMap,
@@ -12,7 +12,7 @@ use std::{
 use crate::{
     actions::{
         edit, general_status, go_down, go_left, go_right, go_up, help, keys_status, next_change,
-        prev_change, quit, remove, save, scroll_down, scroll_up, search,
+        next_found, prev_change, prev_found, quit, remove, save, scroll_down, scroll_up, search,
     },
     misc::Parameters,
     modes::Modes,
@@ -22,7 +22,7 @@ use crate::{
 pub type KeyAction = dyn Fn(&mut TermState, &Parameters) -> Modes;
 
 pub struct Keyboard<'a> {
-    keys_and_actions: HashMap<KeyCode, &'a KeyAction>,
+    keys_and_actions: HashMap<KeyEvent, &'a KeyAction>,
     help: Vec<String>,
 }
 impl<'a> Keyboard<'a> {
@@ -41,7 +41,7 @@ impl<'a> Keyboard<'a> {
             false => create_config(&config_dir),
         };
 
-        let mut pairs: HashMap<KeyCode, &'a KeyAction> = HashMap::new();
+        let mut pairs: HashMap<KeyEvent, &'a KeyAction> = HashMap::new();
         let mut help: Vec<String> = vec![];
 
         let file = File::open(keys_path).expect("Failed to open config file");
@@ -58,14 +58,27 @@ impl<'a> Keyboard<'a> {
 
             let splited: Vec<&str> = line_string_trimed.split_whitespace().collect();
 
-            let key = splited[0];
+            let mut key_str = splited[0];
             let action = *splited.last().unwrap();
 
-            let matched_key: KeyCode = match_key(key);
+            let mut modifier: KeyModifiers = KeyModifiers::NONE;
+
+            // We have a modifier to parse
+            if key_str.contains("+") {
+                let splited: Vec<&str> = key_str.split("+").collect();
+                if splited.len() != 2 {
+                    panic!("Failed to parse keys entry: '{}'", key_str);
+                }
+                modifier = match_modifier(splited[0]).unwrap();
+                key_str = splited[1];
+            }
+
+            let matched_key: KeyCode = match_key(key_str);
+            let event = KeyEvent::new(matched_key, modifier);
             let (matched_action, desc) = match_action(action);
 
-            pairs.insert(matched_key, matched_action);
-            help.push(format!("{}: {}", key, desc));
+            pairs.insert(event, matched_action);
+            help.push(format!("{}: {}", key_str, desc));
 
             iter += 1;
         }
@@ -75,7 +88,7 @@ impl<'a> Keyboard<'a> {
         }
     }
 
-    pub fn get(&self, code: &KeyCode) -> Option<&&KeyAction> {
+    pub fn get(&self, code: &KeyEvent) -> Option<&&KeyAction> {
         self.keys_and_actions.get(&code)
     }
 
@@ -84,6 +97,17 @@ impl<'a> Keyboard<'a> {
     }
 }
 
+fn match_modifier(modifier: &str) -> Result<KeyModifiers, String> {
+    let uniform = modifier.trim().to_lowercase();
+    let uniform_str = uniform.as_str();
+
+    match uniform_str {
+        "control" | "ctrl" => Ok(KeyModifiers::CONTROL),
+        "shift" => Ok(KeyModifiers::SHIFT),
+        "alt" => Ok(KeyModifiers::ALT),
+        _ => Err(format!("Unrecognized modifier: '{}'", modifier)),
+    }
+}
 fn match_key(key: &str) -> KeyCode {
     let uniform_key = key.to_lowercase();
 
@@ -143,13 +167,15 @@ fn match_action<'b>(action: &str) -> (&'b KeyAction, &str) {
         "scroll_up" => (&scroll_up, "pervious offset"),
         "quit" => (&quit, "quit"),
         "exit" => (&quit, "quit"),
-        "goto" => (&|_, _| Modes::GoTo, "goto"),
-        "delete" => (&remove, "remove byte"),
-        "edit" => (&edit, "change byte"),
-        "save" => (&save, "save changes"),
-        "help" => (&help, "print help"),
-        "next_change" => (&next_change, "goes to next change"),
+        "goto" => (&|_, _| Modes::GoTo, "Go to"),
+        "delete" => (&remove, "Remove byte"),
+        "edit" => (&edit, "Change byte"),
+        "save" => (&save, "Save changes"),
+        "help" => (&help, "Print help"),
+        "next_change" => (&next_change, "Goes to next change"),
         "prev_change" => (&prev_change, "Goes to previous change"),
+        "next_found" => (&next_found, "Goes to next found sequence"),
+        "prev_found" => (&prev_found, "Goes to previous found sequence"),
         "general_status" => (&general_status, "changes status bar to its general state"),
         "keys_status" => (&keys_status, "changes status bar to show key bindings"),
         "search" => (&search, "Search for sequence"),
@@ -185,7 +211,9 @@ fn create_config(path: &PathBuf) -> PathBuf {
     keys += "2       keys_status\n";
     keys += ":       goto\n";
     keys += "n       next_change\n";
+    keys += "ctrl+n  next_found\n";
     keys += "p       prev_change\n";
+    keys += "ctrl+p  prev_found\n";
     keys += "f       search\n";
 
     file.write_all(keys.as_bytes())

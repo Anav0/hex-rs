@@ -163,6 +163,45 @@ pub fn get_index_of_closest_change(pos: usize, state: &TermState, direction: Dir
     closest_changed_index
 }
 
+pub fn get_index_of_closest_found(pos: usize, state: &TermState, direction: Direction) -> usize {
+    let mut closest_diff = usize::MAX;
+    let mut closest_changed_index = usize::MAX;
+
+    match direction {
+        Direction::Left => {
+            for range in &state.found_sequences {
+                let i = range.start;
+
+                if i == pos || i > pos {
+                    continue;
+                }
+                let diff = pos - i;
+
+                if diff < closest_diff {
+                    closest_changed_index = i;
+                    closest_diff = diff;
+                }
+            }
+        }
+        Direction::Right => {
+            for range in &state.found_sequences {
+                let i = range.start;
+
+                if i == pos || i < pos {
+                    continue;
+                }
+                let diff = i - pos;
+
+                if diff < closest_diff {
+                    closest_changed_index = i;
+                    closest_diff = diff;
+                }
+            }
+        }
+    }
+
+    closest_changed_index
+}
 pub fn get_offset_for_index(index: usize, parameters: &Parameters) -> usize {
     index / parameters.byte_size as usize
 }
