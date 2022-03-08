@@ -61,6 +61,8 @@ impl<'a> Keyboard<'a> {
             let mut key_str = splited[0];
             let action = *splited.last().unwrap();
 
+            println!("{}", action);
+
             let mut modifier: KeyModifiers = KeyModifiers::NONE;
 
             // We have a modifier to parse
