@@ -45,7 +45,6 @@ pub enum Direction {
 
 pub enum StatusMode {
     General,
-    Keys,
 }
 
 pub struct Parameters {

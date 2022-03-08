@@ -11,8 +11,8 @@ use std::{
 
 use crate::{
     actions::{
-        edit, general_status, go_down, go_left, go_right, go_up, help, keys_status, next_change,
-        next_found, prev_change, prev_found, quit, remove, save, scroll_down, scroll_up, search,
+        edit, general_status, go_down, go_left, go_right, go_up, help, next_change, next_found,
+        prev_change, prev_found, quit, remove, save, scroll_down, scroll_up, search,
     },
     misc::Parameters,
     modes::Modes,
@@ -108,6 +108,7 @@ fn match_modifier(modifier: &str) -> Result<KeyModifiers, String> {
         _ => Err(format!("Unrecognized modifier: '{}'", modifier)),
     }
 }
+
 fn match_key(key: &str) -> KeyCode {
     let uniform_key = key.to_lowercase();
 
@@ -177,7 +178,6 @@ fn match_action<'b>(action: &str) -> (&'b KeyAction, &str) {
         "next_found" => (&next_found, "Goes to next found sequence"),
         "prev_found" => (&prev_found, "Goes to previous found sequence"),
         "general_status" => (&general_status, "changes status bar to its general state"),
-        "keys_status" => (&keys_status, "changes status bar to show key bindings"),
         "search" => (&search, "Search for sequence"),
         _ => panic!("Unrecognized action: '{}'", action),
     }
@@ -208,7 +208,6 @@ fn create_config(path: &PathBuf) -> PathBuf {
     keys += "f3      remove\n";
     keys += "f5      save\n";
     keys += "1       general_status\n";
-    keys += "2       keys_status\n";
     keys += ":       goto\n";
     keys += "n       next_change\n";
     keys += "ctrl+n  next_found\n";

@@ -294,7 +294,6 @@ fn get_status(state: &TermState, parameters: &Parameters, keyboard: &Keyboard) -
 
             status
         }
-        StatusMode::Keys => keyboard.help(", "),
     }
 }
 

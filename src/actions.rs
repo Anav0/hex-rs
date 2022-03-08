@@ -19,11 +19,6 @@ pub fn general_status(state: &mut TermState, parameters: &Parameters) -> Modes {
     Modes::Bytes
 }
 
-pub fn keys_status(state: &mut TermState, parameters: &Parameters) -> Modes {
-    state.status_mode = StatusMode::Keys;
-    Modes::Bytes
-}
-
 pub fn search(state: &mut TermState, parameters: &Parameters) -> Modes {
     Modes::Search
 }
