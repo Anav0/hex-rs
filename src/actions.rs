@@ -74,6 +74,20 @@ pub fn edit(state: &mut TermState, parameters: &Parameters) -> Modes {
     Modes::Change
 }
 
+pub fn go_to_start(state: &mut TermState, parameters: &Parameters) -> Modes {
+    state.render_from_offset = 0;
+
+    Modes::Bytes
+}
+pub fn go_to_end(state: &mut TermState, parameters: &Parameters) -> Modes {
+    let last_offset = state.bytes.len() / parameters.byte_size as usize;
+
+    // @Improvement: take '2' from parameters or state.
+    let number_of_rows_visible = state.term_height - 2;
+
+    state.render_from_offset = last_offset - number_of_rows_visible as usize;
+    Modes::Bytes
+}
 pub fn go_left(state: &mut TermState, parameters: &Parameters) -> Modes {
     let jump_by = calculate_leap(&state, Direction::Left);
     if jump_by <= state.column {

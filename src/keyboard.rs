@@ -11,8 +11,9 @@ use std::{
 
 use crate::{
     actions::{
-        edit, general_status, go_down, go_left, go_right, go_up, help, next_change, next_found,
-        prev_change, prev_found, quit, remove, save, scroll_down, scroll_up, search,
+        edit, general_status, go_down, go_left, go_right, go_to_end, go_to_start, go_up, help,
+        next_change, next_found, prev_change, prev_found, quit, remove, save, scroll_down,
+        scroll_up, search,
     },
     misc::Parameters,
     modes::Modes,
@@ -175,6 +176,8 @@ fn match_action<'b>(action: &str) -> (&'b KeyAction, &str) {
         "prev_change" => (&prev_change, "Goes to previous change"),
         "next_found" => (&next_found, "Goes to next found sequence"),
         "prev_found" => (&prev_found, "Goes to previous found sequence"),
+        "go_to_start" => (&go_to_start, "Goes to first offset"),
+        "go_to_end" => (&go_to_end, "Goes to last offset"),
         "general_status" => (&general_status, "changes status bar to its general state"),
         "search" => (&search, "Search for sequence"),
         _ => panic!("Unrecognized action: '{}'", action),
@@ -212,6 +215,8 @@ fn create_config(path: &PathBuf) -> PathBuf {
     keys += "p       prev_change\n";
     keys += "ctrl+p  prev_found\n";
     keys += "f       search\n";
+    keys += "home    go_to_start\n";
+    keys += "end     go_to_end\n";
 
     file.write_all(keys.as_bytes())
         .expect("Failed to write to keys config file");
