@@ -6,13 +6,13 @@ use std::{
     time::Duration,
 };
 
+use crossterm::terminal;
 use crossterm::{
     cursor,
     event::{poll, read, Event},
     execute,
     terminal::ClearType,
 };
-use crossterm::{terminal, Result};
 use keyboard::Keyboard;
 use misc::{Dimensions, Parameters, StatusMode, TermState};
 use modes::{BytesMode, ChangeMode, GoToMode, HelpMode, Mode, Modes, SearchMode};
@@ -23,9 +23,35 @@ mod misc;
 mod modes;
 mod string;
 
-fn main() -> Result<()> {
-    let args = env::args();
-    let parameters = Parameters::from(args);
+fn print_help() {
+    println!("Hex editor - simple terminal based bytes editor");
+    println!("Usage:");
+    println!("\t./hex-rs <file-path> <number-of-bytes-shown-in-one-row>");
+    println!("\teg. ./hex-rs ./cat.png 16");
+    println!("Config:");
+    println!("Config file can be found in: ");
+    println!("\tWindows: C:\\Users\\Me\\AppData\\Roaming\\Papilionem\\Hex editor\\config\\");
+    println!("\tLinux:   \\home\\Me\\.config\\Papilionem\\Hex editor\\config\\");
+    println!("\tMac:     \\home\\Me\\.config\\Papilionem\\Hex editor\\config\\");
+    println!(
+        "If you messed up your config just delete keys file and it should regenerate on startup."
+    );
+}
+
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    for arg in env::args() {
+        if arg == "-h" || arg == "--help" {
+            print_help();
+            return Ok(());
+        }
+    }
+
+    let parameters = Parameters::from(env::args());
+
+    if parameters.file_path.is_empty() {
+        println!("File path argument is missing");
+        return Ok(());
+    }
 
     let mut stdout = stdout();
 

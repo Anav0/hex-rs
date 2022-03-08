@@ -75,6 +75,13 @@ impl From<Args> for Parameters {
         let collected_args: Vec<String> = args.collect();
         let mut byte_size = 16;
 
+        if collected_args.len() < 2 {
+            return Self {
+                file_path: String::from(""),
+                byte_size,
+            };
+        }
+
         if collected_args.len() >= 3 {
             byte_size = collected_args[2]
                 .parse()

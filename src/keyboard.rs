@@ -32,19 +32,17 @@ impl<'a> Keyboard<'a> {
 
         let config_dir = config_path.config_dir().to_path_buf();
 
-        let keys_path = match config_dir.exists() {
-            true => {
-                let mut key_path = config_dir.clone();
-                key_path.push("keys");
-                key_path
-            }
-            false => create_config(&config_dir),
-        };
+        let mut key_path = config_dir.clone();
+        key_path.push("keys");
+
+        if !key_path.exists() {
+            create_config(&config_dir);
+        }
 
         let mut pairs: HashMap<KeyEvent, &'a KeyAction> = HashMap::new();
         let mut help: Vec<String> = vec![];
 
-        let file = File::open(keys_path).expect("Failed to open config file");
+        let file = File::open(key_path).expect("Failed to open config file");
         let reader = BufReader::new(file);
 
         let mut iter = 0;
@@ -205,7 +203,7 @@ fn create_config(path: &PathBuf) -> PathBuf {
     keys += "q       quit\n";
     keys += "h       help\n";
     keys += "f2      edit\n";
-    keys += "f3      remove\n";
+    keys += "f3      delete\n";
     keys += "f5      save\n";
     keys += "1       general_status\n";
     keys += "shift+: goto\n";
