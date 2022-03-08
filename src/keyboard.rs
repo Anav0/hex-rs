@@ -61,8 +61,6 @@ impl<'a> Keyboard<'a> {
             let mut key_str = splited[0];
             let action = *splited.last().unwrap();
 
-            println!("{}", action);
-
             let mut modifier: KeyModifiers = KeyModifiers::NONE;
 
             // We have a modifier to parse
@@ -210,7 +208,7 @@ fn create_config(path: &PathBuf) -> PathBuf {
     keys += "f3      remove\n";
     keys += "f5      save\n";
     keys += "1       general_status\n";
-    keys += ":       goto\n";
+    keys += "shift+: goto\n";
     keys += "n       next_change\n";
     keys += "ctrl+n  next_found\n";
     keys += "p       prev_change\n";
