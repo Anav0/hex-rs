@@ -2,12 +2,11 @@ use std::{
     collections::{HashMap, HashSet},
     env::Args,
     fs::File,
-    io::Read,
+    io::{Read, Result},
     ops::Range,
 };
 
 use crate::modes::Modes;
-use crossterm::Result;
 
 pub struct Dimensions {
     pub offsets: (u16, u16),

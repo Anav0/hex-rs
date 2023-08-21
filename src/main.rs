@@ -123,6 +123,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     &mut state,
                     &parameters,
                 )?,
+                Event::FocusGained => todo!(),
+                Event::FocusLost => todo!(),
+                Event::Paste(_) => todo!(),
             };
 
             let new_index = match new_mode {

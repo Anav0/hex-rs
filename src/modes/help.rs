@@ -1,4 +1,4 @@
-use std::io::Stdout;
+use std::io::{Result, Stdout};
 
 use crossterm::cursor;
 use crossterm::event::KeyEvent;
@@ -7,7 +7,6 @@ use crossterm::queue;
 use crossterm::style;
 use crossterm::terminal;
 use crossterm::terminal::ClearType;
-use crossterm::Result;
 
 use crate::keyboard::Keyboard;
 use crate::misc::Parameters;

@@ -1,11 +1,12 @@
 use crossterm::{
-    cursor::{self, CursorShape},
+    cursor::{self, SetCursorStyle},
     event::KeyCode,
     queue,
     style::{self, Color},
     terminal::{self, ClearType},
-    Result,
 };
+
+use std::io::Result;
 
 use super::{Mode, Modes};
 
@@ -123,7 +124,7 @@ impl Mode for GoToMode {
                 terminal::Clear(ClearType::FromCursorDown),
                 style::SetForegroundColor(Color::DarkGrey),
                 style::Print(&msg),
-                cursor::SetCursorShape(CursorShape::Block),
+                SetCursorStyle::SteadyBlock,
                 cursor::MoveTo(self.cursor as u16, state.term_height),
             )?;
         }

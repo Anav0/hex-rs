@@ -1,6 +1,5 @@
 use crossterm::event::{KeyEvent, MouseEvent};
-use crossterm::Result;
-use std::io::Stdout;
+use std::io::{Stdout, Result};
 
 mod bytes;
 mod change;

@@ -2,9 +2,8 @@ use crossterm::{
     cursor,
     event::KeyCode,
     queue, style,
-    terminal::{self, ClearType},
 };
-
+use std::io::Result;
 use crate::misc::{get_byte_at_cursor, Parameters, TermState};
 
 use super::{Mode, Modes};
@@ -29,7 +28,7 @@ impl<'a> Mode for ChangeMode<'a> {
         event: &crossterm::event::KeyEvent,
         state: &mut TermState,
         parameters: &Parameters,
-    ) -> crossterm::Result<super::Modes> {
+    ) -> Result<super::Modes> {
         let end_mode = match event.code {
             KeyCode::Char(char) => {
                 if char == 'q' {
@@ -81,7 +80,7 @@ impl<'a> Mode for ChangeMode<'a> {
         event: &crossterm::event::MouseEvent,
         state: &mut TermState,
         parameters: &Parameters,
-    ) -> crossterm::Result<super::Modes> {
+    ) -> Result<super::Modes> {
         Ok(Modes::Change)
     }
 
@@ -92,11 +91,11 @@ impl<'a> Mode for ChangeMode<'a> {
         height: u16,
         state: &mut TermState,
         parameters: &Parameters,
-    ) -> crossterm::Result<super::Modes> {
+    ) -> Result<super::Modes> {
         Ok(Modes::Change)
     }
 
-    fn draw(&self, stdout: &mut std::io::Stdout, state: &TermState) -> crossterm::Result<()> {
+    fn draw(&self, stdout: &mut std::io::Stdout, state: &TermState) -> Result<()> {
         for i in 1..4 {
             queue!(
                 stdout,

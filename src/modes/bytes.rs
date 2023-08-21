@@ -1,12 +1,12 @@
 use std::collections::HashMap;
 use std::fs::File;
-use std::io::{Read, Stdout, Write};
+use std::io::{Result, Stdout, Write};
 use std::ops::Range;
 
 use crossterm::event::{self, KeyEvent, MouseEvent};
 use crossterm::style::{Color, SetBackgroundColor, SetForegroundColor};
 use crossterm::terminal::ClearType;
-use crossterm::{cursor, queue, style, terminal, Result};
+use crossterm::{cursor, queue, style, terminal};
 
 use crate::StatusMode;
 use crate::{keyboard::Keyboard, Parameters, TermState};
